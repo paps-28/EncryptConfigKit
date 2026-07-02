@@ -30,7 +30,7 @@ struct EncryptConfigPlugin: BuildToolPlugin {
         return try makeCommands(
             projectDirectory: target.directory,
             workDirectory: context.pluginWorkDirectory,
-            tool: context.tool(named: "EncryptConfigCLI")
+            tool: context.tool(named: "encrypt-config")
         )
     }
 }
@@ -48,7 +48,7 @@ extension EncryptConfigPlugin: XcodeBuildToolPlugin {
         return try makeCommands(
             projectDirectory: context.xcodeProject.directory,
             workDirectory: context.pluginWorkDirectory,
-            tool: context.tool(named: "EncryptConfigCLI")
+            tool: context.tool(named: "encrypt-config")
         )
     }
 }
