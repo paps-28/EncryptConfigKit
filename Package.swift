@@ -20,6 +20,10 @@ let package = Package(
         .executable(
             name: "encrypt-config",
             targets: ["EncryptConfigCLI"]
+        ),
+        .plugin(
+            name: "EncryptConfigPlugin",
+            targets: ["EncryptConfigPlugin"]
         )
     ],
     targets: [
@@ -33,6 +37,11 @@ let package = Package(
         .executableTarget(
             name: "EncryptConfigCLI",
             dependencies: ["EncryptConfigCore"]
+        ),
+        .plugin(
+            name: "EncryptConfigPlugin",
+            capability: .buildTool(),
+            dependencies: ["EncryptConfigCLI"]
         ),
         .testTarget(
             name: "EncryptConfigCoreTests",
