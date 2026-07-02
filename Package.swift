@@ -18,7 +18,7 @@ let package = Package(
             targets: ["EncryptConfigRuntime"]
         ),
         .executable(
-            name: "encrypt-config",
+            name: "EncryptConfigCLI",
             targets: ["EncryptConfigCLI"]
         ),
         .plugin(
