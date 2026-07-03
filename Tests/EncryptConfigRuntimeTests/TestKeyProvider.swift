@@ -57,13 +57,10 @@ final class ConfigurationLoaderTests: XCTestCase {
         let bundle = Bundle(path: tempDirectory.path)!
 
         let loader = ConfigurationLoader(
-            keyProvider: TestKeyProvider(password: password),
-            bundle: bundle,
-            resourceName: "SecretsConfig",
-            resourceExtension: "plist.enc"
+            keyProvider: TestKeyProvider(password: password)
         )
 
-        let decoded = try await loader.loadDictionary()
+        let decoded = try await loader.loadDictionary(fromEncryptedData: encryptedData)
 
         XCTAssertEqual(decoded["API_URL"] as? String, "https://api.example.com")
         XCTAssertEqual(decoded["CLIENT_ID"] as? String, "abc123")
