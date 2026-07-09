@@ -934,12 +934,12 @@ Response example:
 
 ---
 
-## Recommended backend flow
+## Flujo recomendado backend
 
 ```text
-1. Receive RSA public key from app
-2. Validate app/session/device identity
-3. Select AES key for the requested environment
-4. Encrypt AES key using RSA-OAEP-SHA256
-5. Return encrypted AES key as Base64
+1. Recibe la llave pública RSA desde el dispositivo
+2. Valida la session del dispositivo con algún mecanismo
+3. Selecciona la llave aes, dependiendo el ambiente
+4. Encripta la llave AES utilizando RSA-OAEP-SHA256 con la llave pública
+5. Regresa la llave aes encriptada en formato base64
 ```
