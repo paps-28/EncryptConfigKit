@@ -12,17 +12,18 @@ public protocol AsymmetricKeyManaging {
     func generateKeyPairIfNeeded() throws
     func publicKeyBase64() throws -> String
     func publicKeyPEM() throws -> String
+    func decrypt(_ data: Data) throws -> Data
     func hasPrivateKey() -> Bool
     func deleteKeyPair() throws
 }
 
-public protocol RSAKeyPairGenerating {
+protocol RSAKeyPairGenerating {
     func generatePrivateKey(keySize: Int) throws -> SecKey
     func getPublicKey(from privateKey: SecKey) throws -> SecKey
     func externalRepresentation(of key: SecKey) throws -> Data
 }
 
-public protocol PrivateKeyStoring {
+protocol PrivateKeyStoring {
     func save(_ key: SecKey, tag: Data) throws
     func load(tag: Data) throws -> SecKey?
     func delete(tag: Data) throws

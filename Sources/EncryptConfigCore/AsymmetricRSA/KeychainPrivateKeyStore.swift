@@ -7,11 +7,11 @@
 
 import Foundation
 
-public final class KeychainPrivateKeyStore: PrivateKeyStoring {
+final class KeychainPrivateKeyStore: PrivateKeyStoring {
 
-    public init() {}
+    init() {}
 
-    public func save(_ key: SecKey, tag: Data) throws {
+    func save(_ key: SecKey, tag: Data) throws {
         try delete(tag: tag)
 
         let query: [String: Any] = [
@@ -29,7 +29,7 @@ public final class KeychainPrivateKeyStore: PrivateKeyStoring {
         }
     }
 
-    public func load(tag: Data) throws -> SecKey? {
+    func load(tag: Data) throws -> SecKey? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
@@ -51,7 +51,7 @@ public final class KeychainPrivateKeyStore: PrivateKeyStoring {
         return item as! SecKey
     }
 
-    public func delete(tag: Data) throws {
+    func delete(tag: Data) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,

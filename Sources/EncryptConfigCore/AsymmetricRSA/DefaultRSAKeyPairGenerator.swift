@@ -7,11 +7,11 @@
 
 import Foundation
 
-public final class DefaultRSAKeyPairGenerator: RSAKeyPairGenerating {
+final class DefaultRSAKeyPairGenerator: RSAKeyPairGenerating {
 
-    public init() {}
+    init() {}
 
-    public func generatePrivateKey(keySize: Int) throws -> SecKey {
+    func generatePrivateKey(keySize: Int) throws -> SecKey {
         let attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
             kSecAttrKeySizeInBits as String: keySize
@@ -29,7 +29,7 @@ public final class DefaultRSAKeyPairGenerator: RSAKeyPairGenerating {
         return privateKey
     }
 
-    public func getPublicKey(from privateKey: SecKey) throws -> SecKey {
+    func getPublicKey(from privateKey: SecKey) throws -> SecKey {
         guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
             throw RSAKeyManagerError.publicKeyNotFound
         }
@@ -37,7 +37,7 @@ public final class DefaultRSAKeyPairGenerator: RSAKeyPairGenerating {
         return publicKey
     }
 
-    public func externalRepresentation(of key: SecKey) throws -> Data {
+    func externalRepresentation(of key: SecKey) throws -> Data {
         var error: Unmanaged<CFError>?
 
         guard let data = SecKeyCopyExternalRepresentation(

@@ -15,4 +15,6 @@ public enum RSAKeyManagerError: Error {
     case saveFailed(OSStatus)
     case loadFailed(OSStatus)
     case deleteFailed(OSStatus)
+    case algorithmNotSupported
+    case decryptionFailed
 }
