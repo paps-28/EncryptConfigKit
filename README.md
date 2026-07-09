@@ -469,3 +469,507 @@ Decrypt SecretsConfig.plist.enc
        ▼
 Secrets available in memory
 ```
+
+## Algoritmo de cifrado RSA
+
+La aplicación utiliza el siguiente algoritmo para descifrar la llave AES recibida desde el backend:
+
+```text
+RSA-OAEP-SHA256
+```
+
+Por lo tanto, el backend debe utilizar exactamente el mismo algoritmo para cifrar la llave AES.
+
+Es importante que exista compatibilidad entre ambos extremos respecto a:
+
+```text
+Padding
+
+OAEP Hash Algorithm
+
+MGF1 Hash Algorithm
+```
+
+La configuración recomendada es:
+
+```text
+RSA Key Size:       3072 bits
+
+Padding:            OAEP
+
+OAEP Hash:          SHA-256
+
+MGF1 Hash:          SHA-256
+```
+
+El flujo criptográfico es:
+
+```text
+AES Key
+   │
+   ▼
+RSA Public Key
+   │
+   ▼
+RSA-OAEP-SHA256
+   │
+   ▼
+Encrypted AES Key
+```
+
+La aplicación realiza la operación inversa:
+
+```text
+Encrypted AES Key
+        │
+        ▼
+RSA Private Key
+        │
+        ▼
+RSA-OAEP-SHA256
+        │
+        ▼
+AES Key
+```
+
+## Flujo del backend
+
+El backend debe realizar las siguientes operaciones:
+
+```text
+1. Recibir la llave pública RSA de la aplicación.
+
+2. Validar la identidad, sesión o autorización del cliente.
+
+3. Identificar la llave AES correspondiente al ambiente y versión solicitados.
+
+4. Cifrar la llave AES utilizando la llave pública RSA recibida.
+
+5. Utilizar RSA-OAEP-SHA256 como algoritmo de cifrado.
+
+6. Convertir el resultado cifrado a Base64.
+
+7. Regresar la llave AES cifrada a la aplicación.
+```
+
+La llave AES nunca debe enviarse en texto plano.
+
+## Compatibilidad con diferentes tecnologías backend
+
+La operación de cifrado puede implementarse utilizando cualquier tecnología backend que soporte RSA-OAEP-SHA256.
+
+Entre las tecnologías más comunes se encuentran:
+
+```text
+Java
+
+.NET
+
+Go
+
+Node.js
+
+Python
+
+OpenSSL
+```
+
+La tecnología utilizada por el servidor no afecta el funcionamiento del paquete.
+
+La única condición es que el backend utilice parámetros criptográficos compatibles con la implementación utilizada por la aplicación iOS.
+
+## Formato de la llave pública
+
+La aplicación puede enviar la llave pública utilizando PEM.
+
+Por ejemplo:
+
+```text
+-----BEGIN RSA PUBLIC KEY-----
+BASE64_PUBLIC_KEY
+-----END RSA PUBLIC KEY-----
+```
+
+Este formato corresponde normalmente a una llave pública RSA codificada utilizando PKCS#1.
+
+Algunas librerías backend esperan el siguiente formato:
+
+```text
+-----BEGIN PUBLIC KEY-----
+BASE64_PUBLIC_KEY
+-----END PUBLIC KEY-----
+```
+
+Este formato corresponde normalmente a una llave pública codificada utilizando X.509 SubjectPublicKeyInfo.
+
+Antes de implementar la integración con el backend debe verificarse qué formato acepta la librería criptográfica utilizada.
+
+No es suficiente cambiar únicamente los encabezados del PEM.
+
+La estructura binaria DER subyacente también debe corresponder al formato esperado.
+
+## Ejemplos de backend: cifrar la llave AES con la llave pública RSA
+
+La aplicación genera localmente un par de llaves RSA y envía únicamente la llave pública al backend.
+
+El backend utiliza esta llave pública para cifrar la llave AES que previamente fue utilizada por el plugin durante el proceso de compilación para cifrar el archivo de configuración.
+
+Es importante que el backend utilice **exactamente la misma llave AES utilizada por el plugin**. El servidor no debe generar una nueva llave AES en cada solicitud.
+
+El cifrado de la llave AES debe realizarse utilizando:
+
+```text
+RSA-OAEP-SHA256
+```
+
+El flujo general es:
+
+```text
+Plugin
+   │
+   │ Utiliza AES Key
+   ▼
+Cifra SecretsConfig.plist
+   │
+   ▼
+SecretsConfig.plist.enc
+   │
+   ▼
+App Bundle
+
+
+Backend
+   │
+   │ Almacena la misma AES Key
+   ▼
+Recibe RSA Public Key de la aplicación
+   │
+   ▼
+Cifra AES Key utilizando RSA-OAEP-SHA256
+   │
+   ▼
+Encrypted AES Key
+   │
+   ▼
+Base64
+   │
+   ▼
+Aplicación
+
+
+Aplicación
+   │
+   │ RSA Private Key
+   ▼
+Descifra Encrypted AES Key
+   │
+   ▼
+AES Key
+   │
+   ▼
+Descifra SecretsConfig.plist.enc
+```
+
+El backend debe regresar la llave AES cifrada codificada en Base64.
+
+Ejemplo de respuesta:
+
+```json
+{
+    "encrypted_key": "BASE64_RSA_ENCRYPTED_AES_KEY"
+}
+```
+
+### Formato de la llave pública
+
+La aplicación puede enviar la llave pública RSA utilizando formato PEM.
+
+Dependiendo de cómo se exporte la llave pública desde iOS, puede utilizarse alguno de los siguientes formatos.
+
+Formato PKCS#1:
+
+```text
+-----BEGIN RSA PUBLIC KEY-----
+BASE64_PUBLIC_KEY
+-----END RSA PUBLIC KEY-----
+```
+
+Formato X.509 SubjectPublicKeyInfo:
+
+```text
+-----BEGIN PUBLIC KEY-----
+BASE64_PUBLIC_KEY
+-----END PUBLIC KEY-----
+```
+
+Las diferentes tecnologías backend pueden esperar formatos distintos para importar una llave pública RSA.
+
+Por este motivo, antes de utilizar los ejemplos siguientes debe verificarse qué formato de llave pública acepta la librería criptográfica utilizada.
+
+No es suficiente cambiar únicamente los encabezados del PEM. La representación binaria DER también debe corresponder al formato esperado.
+
+Los siguientes ejemplos muestran cómo cifrar la llave AES utilizando la llave pública RSA recibida desde la aplicación mediante:
+
+* Java
+* .NET
+* Go
+* OpenSSL
+
+Todos los ejemplos deben utilizar parámetros criptográficos compatibles con la aplicación iOS:
+
+```text
+RSA Padding: OAEP
+OAEP Hash: SHA-256
+MGF1 Hash: SHA-256
+```
+
+El resultado del cifrado debe convertirse a Base64 antes de enviarse a la aplicación.
+
+La aplicación convierte el valor Base64 recibido a datos binarios y utiliza su llave privada RSA almacenada localmente para recuperar la llave AES original.
+---
+
+## Java example
+
+```java
+import javax.crypto.Cipher;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+public final class RSAOAEPEncryptor {
+
+    public static String encryptAESKey(
+            String aesKeyBase64,
+            String publicKeyPem
+    ) throws Exception {
+
+        byte[] aesKey = Base64.getDecoder().decode(aesKeyBase64);
+
+        PublicKey publicKey = loadPublicKey(publicKeyPem);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+
+        byte[] encrypted = cipher.doFinal(aesKey);
+
+        return Base64.getEncoder().encodeToString(encrypted);
+    }
+
+    private static PublicKey loadPublicKey(String publicKeyPem) throws Exception {
+        String cleaned = publicKeyPem
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replace("-----BEGIN RSA PUBLIC KEY-----", "")
+                .replace("-----END RSA PUBLIC KEY-----", "")
+                .replaceAll("\\s", "");
+
+        byte[] keyBytes = Base64.getDecoder().decode(cleaned);
+
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+
+        return KeyFactory
+                .getInstance("RSA")
+                .generatePublic(spec);
+    }
+}
+```
+
+Usage:
+
+```java
+String encryptedAESKey = RSAOAEPEncryptor.encryptAESKey(
+        "BASE64_AES_KEY",
+        publicKeyPemFromApp
+);
+```
+
+---
+
+## .NET example
+
+```csharp
+using System;
+using System.Security.Cryptography;
+using System.Text;
+
+public static class RSAOAEPEncryptor
+{
+    public static string EncryptAESKey(
+        string aesKeyBase64,
+        string publicKeyPem
+    )
+    {
+        byte[] aesKey = Convert.FromBase64String(aesKeyBase64);
+
+        using RSA rsa = RSA.Create();
+
+        rsa.ImportFromPem(publicKeyPem.ToCharArray());
+
+        byte[] encrypted = rsa.Encrypt(
+            aesKey,
+            RSAEncryptionPadding.OaepSHA256
+        );
+
+        return Convert.ToBase64String(encrypted);
+    }
+}
+```
+
+Usage:
+
+```csharp
+string encryptedAESKey = RSAOAEPEncryptor.EncryptAESKey(
+    "BASE64_AES_KEY",
+    publicKeyPemFromApp
+);
+```
+
+---
+
+## Go example
+
+```go
+package crypto
+
+import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"errors"
+)
+
+func EncryptAESKey(
+	aesKeyBase64 string,
+	publicKeyPEM string,
+) (string, error) {
+
+	aesKey, err := base64.StdEncoding.DecodeString(aesKeyBase64)
+	if err != nil {
+		return "", err
+	}
+
+	publicKey, err := loadPublicKey(publicKeyPEM)
+	if err != nil {
+		return "", err
+	}
+
+	encrypted, err := rsa.EncryptOAEP(
+		sha256.New(),
+		rand.Reader,
+		publicKey,
+		aesKey,
+		nil,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(encrypted), nil
+}
+
+func loadPublicKey(publicKeyPEM string) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode([]byte(publicKeyPEM))
+	if block == nil {
+		return nil, errors.New("invalid public key PEM")
+	}
+
+	if block.Type == "PUBLIC KEY" {
+		key, err := x509.ParsePKIXPublicKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		rsaKey, ok := key.(*rsa.PublicKey)
+		if !ok {
+			return nil, errors.New("public key is not RSA")
+		}
+
+		return rsaKey, nil
+	}
+
+	if block.Type == "RSA PUBLIC KEY" {
+		return x509.ParsePKCS1PublicKey(block.Bytes)
+	}
+
+	return nil, errors.New("unsupported public key type")
+}
+```
+
+Usage:
+
+```go
+encryptedAESKey, err := crypto.EncryptAESKey(
+	"BASE64_AES_KEY",
+	publicKeyPEMFromApp,
+)
+```
+
+---
+
+## OpenSSL example
+
+Save the public key received from the app:
+
+```bash
+cat > public_key.pem <<EOF
+-----BEGIN RSA PUBLIC KEY-----
+...
+-----END RSA PUBLIC KEY-----
+EOF
+```
+
+Create a random AES-256 key:
+
+```bash
+openssl rand -base64 32 > aes_key.base64
+```
+
+Decode it to binary:
+
+```bash
+base64 -d aes_key.base64 > aes_key.bin
+```
+
+Encrypt the AES key using RSA-OAEP-SHA256:
+
+```bash
+openssl pkeyutl \
+  -encrypt \
+  -pubin \
+  -inkey public_key.pem \
+  -in aes_key.bin \
+  -out encrypted_aes_key.bin \
+  -pkeyopt rsa_padding_mode:oaep \
+  -pkeyopt rsa_oaep_md:sha256 \
+  -pkeyopt rsa_mgf1_md:sha256
+```
+
+Return it as Base64:
+
+```bash
+base64 encrypted_aes_key.bin
+```
+
+Response example:
+
+```json
+{
+    "encrypted_key": "BASE64_RSA_ENCRYPTED_AES_KEY"
+}
+```
+
+---
+
+## Recommended backend flow
+
+```text
+1. Receive RSA public key from app
+2. Validate app/session/device identity
+3. Select AES key for the requested environment
+4. Encrypt AES key using RSA-OAEP-SHA256
+5. Return encrypted AES key as Base64
+```
