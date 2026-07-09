@@ -578,36 +578,6 @@ La tecnología utilizada por el servidor no afecta el funcionamiento del paquete
 
 La única condición es que el backend utilice parámetros criptográficos compatibles con la implementación utilizada por la aplicación iOS.
 
-## Formato de la llave pública
-
-La aplicación puede enviar la llave pública utilizando PEM.
-
-Por ejemplo:
-
-```text
------BEGIN RSA PUBLIC KEY-----
-BASE64_PUBLIC_KEY
------END RSA PUBLIC KEY-----
-```
-
-Este formato corresponde normalmente a una llave pública RSA codificada utilizando PKCS#1.
-
-Algunas librerías backend esperan el siguiente formato:
-
-```text
------BEGIN PUBLIC KEY-----
-BASE64_PUBLIC_KEY
------END PUBLIC KEY-----
-```
-
-Este formato corresponde normalmente a una llave pública codificada utilizando X.509 SubjectPublicKeyInfo.
-
-Antes de implementar la integración con el backend debe verificarse qué formato acepta la librería criptográfica utilizada.
-
-No es suficiente cambiar únicamente los encabezados del PEM.
-
-La estructura binaria DER subyacente también debe corresponder al formato esperado.
-
 ## Ejemplos de backend: cifrar la llave AES con la llave pública RSA
 
 La aplicación genera localmente un par de llaves RSA y envía únicamente la llave pública al backend.
