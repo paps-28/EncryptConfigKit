@@ -9,10 +9,35 @@
 import PackagePlugin
 import Foundation
 
-struct PluginConfiguration: Decodable {
+private struct PluginConfiguration: Decodable {
+    let defaultEnvironment: String
+    let symbol: String?
+    let environments: [String: EnvironmentConfiguration]
+}
+
+private struct EnvironmentConfiguration: Decodable {
     let input: String
-    let symbol: String
-    let keyEnvironment: String
+    let keyId: String?
+    let keyEnvironmentVariable: String
+}
+
+private enum PluginConfigurationError: LocalizedError {
+    case environmentNotFound(String)
+    case missingKeyEnvironmentVariable(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .environmentNotFound(let environment):
+            return """
+            Environment '\(environment)' was not found in encrypt-config.json.
+            """
+
+        case .missingKeyEnvironmentVariable(let variable):
+            return """
+            Environment variable '\(variable)' is missing or empty.
+            """
+        }
+    }
 }
 
 @main
@@ -45,7 +70,7 @@ extension EncryptConfigPlugin: XcodeBuildToolPlugin {
         target: XcodeTarget
     ) throws -> [Command] {
 
-        return try makeCommands(
+        try makeCommands(
             projectDirectory: context.xcodeProject.directory,
             workDirectory: context.pluginWorkDirectory,
             tool: context.tool(named: "EncryptConfigCLI")
@@ -60,10 +85,13 @@ private func makeCommands(
     tool: PluginContext.Tool
 ) throws -> [Command] {
 
-    let configFile = projectDirectory.appending("encrypt-config.json")
+    let configFile = projectDirectory
+        .appending("encrypt-config.json")
 
     let configData = try Data(
-        contentsOf: URL(fileURLWithPath: configFile.string)
+        contentsOf: URL(
+            fileURLWithPath: configFile.string
+        )
     )
 
     let config = try JSONDecoder().decode(
@@ -71,21 +99,54 @@ private func makeCommands(
         from: configData
     )
 
-    let inputFile = projectDirectory.appending(config.input)
+    let processEnvironment =
+        ProcessInfo.processInfo.environment
+
+    let selectedEnvironment =
+        processEnvironment["CONFIG_ENV"]
+        ?? config.defaultEnvironment
+
+    guard let environmentConfiguration =
+        config.environments[selectedEnvironment]
+    else {
+        throw PluginConfigurationError.environmentNotFound(
+            selectedEnvironment
+        )
+    }
+
+    let inputFile = resolvePath(
+        environmentConfiguration.input,
+        relativeTo: configFile
+    )
+
+    let symbol =
+        config.symbol
+        ?? "EncryptedConfigResource"
 
     let outputFile = workDirectory
-        .appending("\(config.symbol).generated.swift")
+        .appending("\(symbol).generated.swift")
 
     return [
         .buildCommand(
-            displayName: "Encrypt \(config.input)",
+            displayName: """
+            Encrypt configuration (\(selectedEnvironment))
+            """,
             executable: tool.path,
             arguments: [
-                "--input", inputFile.string,
-                "--output", outputFile.string,
-                "--emit", "swift",
-                "--symbol", config.symbol,
-                "--key-env", config.keyEnvironment
+                "--config",
+                configFile.string,
+
+                "--environment",
+                selectedEnvironment,
+
+                "--output",
+                outputFile.string,
+
+                "--emit",
+                "swift",
+
+                "--symbol",
+                symbol
             ],
             inputFiles: [
                 configFile,
@@ -96,4 +157,23 @@ private func makeCommands(
             ]
         )
     ]
+}
+
+private func resolvePath(
+    _ path: String,
+    relativeTo configFile: Path
+) -> Path {
+
+    if path.hasPrefix("/") {
+        return Path(path)
+    }
+
+    /*
+     El input del JSON se interpreta respecto a la carpeta
+     donde se encuentra encrypt-config.json.
+     */
+
+    let configDirectory = configFile.removingLastComponent()
+
+    return configDirectory.appending(path)
 }

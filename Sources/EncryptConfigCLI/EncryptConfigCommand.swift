@@ -12,57 +12,96 @@ import Foundation
 struct EncryptConfigCommand {
 
     func run(arguments: Arguments) throws {
-        let environment = ProcessInfo.processInfo.environment
+        let processEnvironment =
+            ProcessInfo.processInfo.environment
+
+        let resolvedConfiguration = try resolveConfiguration(
+            arguments: arguments,
+            processEnvironment: processEnvironment
+        )
 
         guard
-            let password = environment[arguments.keyEnvironment],
+            let password = processEnvironment[
+                resolvedConfiguration.keyEnvironmentVariable
+            ],
             !password.isEmpty
         else {
-            throw CLIError.missingEnvironmentKey(arguments.keyEnvironment)
+            throw CLIError.missingEnvironmentKey(
+                resolvedConfiguration.keyEnvironmentVariable
+            )
         }
 
-        let inputURL = URL(fileURLWithPath: arguments.input)
-        let outputURL = URL(fileURLWithPath: arguments.output)
+        let inputURL = URL(
+            fileURLWithPath: resolvedConfiguration.input
+        )
 
-        let inputData = try Data(contentsOf: inputURL)
+        let outputURL = URL(
+            fileURLWithPath: arguments.output
+        )
+
+        let inputData = try Data(
+            contentsOf: inputURL
+        )
 
         let encrypted = try EncryptionService().encrypt(
             data: inputData,
             password: password
         )
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-
-        let encryptedData = try encoder.encode(encrypted)
-
         try FileManager.default.createDirectory(
             at: outputURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
 
-        switch arguments.emit {
-        case .json:
-            try encryptedData.write(to: outputURL)
+        try writeSwiftSource(
+            encrypted,
+            symbol: arguments.symbol,
+            to: outputURL
+        )
 
-        case .swift:
-            let base64 = encryptedData.base64EncodedString()
+        print("Environment: \(resolvedConfiguration.environment)")
+        print("Input: \(inputURL.path)")
+        print("Output: \(outputURL.path)")
+        print(
+            "Key environment variable: " +
+            resolvedConfiguration.keyEnvironmentVariable
+        )
 
-            let source = """
-            import Foundation
-
-            enum \(arguments.symbol) {
-                static let data = Data(base64Encoded: "\(base64)")!
-            }
-            """
-
-            try source.write(
-                to: outputURL,
-                atomically: true,
-                encoding: .utf8
-            )
+        if let keyId = resolvedConfiguration.keyId {
+            print("Key ID: \(keyId)")
         }
-
-        print("Encrypted config generated at: \(arguments.output)")
     }
+}
+
+private func writeSwiftSource(
+    _ encryptedConfiguration: EncryptedConfiguration,
+    symbol: String,
+    to outputURL: URL
+) throws {
+    let salt = encryptedConfiguration.salt
+        .base64EncodedString()
+
+    let combined = encryptedConfiguration.combined
+        .base64EncodedString()
+
+    let source = """
+    import Foundation
+    import EncryptConfigCore
+
+    enum \(symbol) {
+        static let value = EncryptedConfiguration(
+            salt: Data(base64Encoded: "\(salt)")!,
+            combined: Data(base64Encoded: "\(combined)")!
+        )
+    }
+    """
+
+    guard let data = source.data(using: .utf8) else {
+        throw CLIError.failedToEncodeSwiftSource
+    }
+
+    try data.write(
+        to: outputURL,
+        options: .atomic
+    )
 }

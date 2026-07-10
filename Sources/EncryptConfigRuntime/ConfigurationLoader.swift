@@ -48,11 +48,11 @@ public final class ConfigurationLoader {
 
     public func loadDecodable<T: Decodable>(
         _ type: T.Type,
-        fromEncryptedData encryptedData: Data
+        from configuration: EncryptedConfiguration
     ) async throws -> T {
 
         let decryptedData = try await loadData(
-            fromEncryptedData: encryptedData
+            from: configuration
         )
 
         return try PropertyListDecoder().decode(
@@ -62,18 +62,13 @@ public final class ConfigurationLoader {
     }
 
     public func loadData(
-        fromEncryptedData encryptedData: Data
+        from configuration: EncryptedConfiguration
     ) async throws -> Data {
 
         let password = try await keyProvider.configurationPassword()
 
-        let encryptedConfiguration = try JSONDecoder().decode(
-            EncryptedConfiguration.self,
-            from: encryptedData
-        )
-
         return try decryptionService.decrypt(
-            configuration: encryptedConfiguration,
+            configuration: configuration,
             password: password
         )
     }

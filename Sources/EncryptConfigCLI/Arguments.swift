@@ -10,11 +10,15 @@ import Foundation
 
 struct Arguments {
 
-    let input: String
+    let config: String?
+    let environment: String?
+
+    let input: String?
     let output: String
+
     let emit: EmitMode
     let symbol: String
-    let keyEnvironment: String
+    let keyEnvironment: String?
 
     enum EmitMode: String {
         case json
@@ -22,24 +26,69 @@ struct Arguments {
     }
 
     init(arguments: [String] = CommandLine.arguments) throws {
-        guard
-            let input = Self.value(after: "--input", in: arguments),
-            let output = Self.value(after: "--output", in: arguments)
-        else {
+        self.config = Self.value(
+            after: "--config",
+            in: arguments
+        )
+
+        self.environment = Self.value(
+            after: "--environment",
+            in: arguments
+        )
+
+        self.input = Self.value(
+            after: "--input",
+            in: arguments
+        )
+
+        guard let output = Self.value(
+            after: "--output",
+            in: arguments
+        ) else {
             throw CLIError.missingRequiredArguments
         }
 
-        self.input = input
         self.output = output
+
         self.emit = EmitMode(
-            rawValue: Self.value(after: "--emit", in: arguments) ?? "json"
+            rawValue: Self.value(
+                after: "--emit",
+                in: arguments
+            ) ?? "json"
         ) ?? .json
 
-        self.symbol = Self.value(after: "--symbol", in: arguments)
-            ?? "EncryptedConfigResource"
+        self.symbol = Self.value(
+            after: "--symbol",
+            in: arguments
+        ) ?? "EncryptedConfigResource"
 
-        self.keyEnvironment = Self.value(after: "--key-env", in: arguments)
-            ?? "CONFIG_KEY"
+        self.keyEnvironment = Self.value(
+            after: "--key-env",
+            in: arguments
+        )
+
+        try validate()
+    }
+
+    private func validate() throws {
+        let usesConfigFile = config != nil
+        let usesLegacyArguments =
+            input != nil &&
+            keyEnvironment != nil
+
+        guard usesConfigFile || usesLegacyArguments else {
+            throw CLIError.invalidArguments(
+                """
+                Provide either:
+
+                --config <encrypt-config.json>
+
+                or:
+
+                --input <file> --key-env <environment-variable>
+                """
+            )
+        }
     }
 
     private static func value(
@@ -56,11 +105,12 @@ struct Arguments {
             return nil
         }
 
-        return arguments[valueIndex]
-    }
-}
+        let value = arguments[valueIndex]
 
-enum CLIError: Error {
-    case missingRequiredArguments
-    case missingEnvironmentKey(String)
+        guard !value.hasPrefix("--") else {
+            return nil
+        }
+
+        return value
+    }
 }
