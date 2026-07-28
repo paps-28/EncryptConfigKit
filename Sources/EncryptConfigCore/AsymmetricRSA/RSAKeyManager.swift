@@ -16,6 +16,8 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
     private let generator: RSAKeyPairGenerating
     private let store: PrivateKeyStoring
     private let decryptor: RSADecrypting
+    
+    private let publicKeyExporter: RSAPublicKeyX509Exporter
 
     // MARK: - Public
 
@@ -30,6 +32,7 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
         self.generator = DefaultRSAKeyPairGenerator()
         self.store = KeychainPrivateKeyStore()
         self.decryptor = DefaultRSADecryptor(algorithm: algorithm)
+        self.publicKeyExporter = RSAPublicKeyX509Exporter()
     }
 
     // MARK: - Internal / Testing
@@ -47,6 +50,7 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
         self.generator = generator
         self.store = store
         self.decryptor = decryptor
+        self.publicKeyExporter = RSAPublicKeyX509Exporter()
     }
 
     public func generateKeyPairIfNeeded() throws {
@@ -71,11 +75,15 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
             from: privateKey
         )
 
-        let publicKeyData = try generator.externalRepresentation(
+        let pkcs1Data = try generator.externalRepresentation(
             of: publicKey
         )
 
-        return publicKeyData.base64EncodedString()
+        let x509Data = publicKeyExporter.wrapPKCS1InX509(
+            pkcs1Data
+        )
+
+        return x509Data.base64EncodedString()
     }
 
     public func publicKeyPEM() throws -> String {
@@ -86,9 +94,9 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
             .joined(separator: "\n")
 
         return """
-        -----BEGIN RSA PUBLIC KEY-----
+        -----BEGIN PUBLIC KEY-----
         \(formatted)
-        -----END RSA PUBLIC KEY-----
+        -----END PUBLIC KEY-----
         """
     }
 

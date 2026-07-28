@@ -53,7 +53,7 @@ final class RSAKeyManagerTests: XCTestCase {
             tag: "test.privatekey",
             keySize: 2048,
             generator: DefaultRSAKeyPairGenerator(),
-            store: InMemoryPrivateKeyStore(),
+            store: store,
             decryptor: DefaultRSADecryptor()
         )
         
@@ -61,8 +61,8 @@ final class RSAKeyManagerTests: XCTestCase {
         
         let pem = try manager.publicKeyPEM()
         
-        XCTAssertTrue(pem.contains("-----BEGIN RSA PUBLIC KEY-----"))
-        XCTAssertTrue(pem.contains("-----END RSA PUBLIC KEY-----"))
+        XCTAssertTrue(pem.contains("-----BEGIN PUBLIC KEY-----"))
+        XCTAssertTrue(pem.contains("-----END PUBLIC KEY-----"))
     }
     
     func testDeleteKeyPairRemovesPrivateKey() throws {
