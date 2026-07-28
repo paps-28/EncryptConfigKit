@@ -21,14 +21,15 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
 
     public init(
         tag: String? = nil,
-        keySize: Int = 3072
+        keySize: Int = 3072,
+        algorithm: SecKeyAlgorithm = .rsaEncryptionOAEPSHA256
     ) {
         self.tag = Self.resolveTag(tag)
         self.keySize = keySize
 
         self.generator = DefaultRSAKeyPairGenerator()
         self.store = KeychainPrivateKeyStore()
-        self.decryptor = DefaultRSADecryptor()
+        self.decryptor = DefaultRSADecryptor(algorithm: algorithm)
     }
 
     // MARK: - Internal / Testing
