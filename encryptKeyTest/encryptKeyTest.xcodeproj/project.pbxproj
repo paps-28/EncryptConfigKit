@@ -37,9 +37,22 @@
 		ED8D3B9A306343AD003E6B39 /* encrypt-config.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "encrypt-config.json"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		957A393630643A0D000B9E22 /* Exceptions for "encryptKeyTest" folder in "encryptKeyTest" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ED2351612FF42F3600C4D7BF /* encryptKeyTest */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		ED2351642FF42F3700C4D7BF /* encryptKeyTest */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				957A393630643A0D000B9E22 /* Exceptions for "encryptKeyTest" folder in "encryptKeyTest" target */,
+			);
 			path = encryptKeyTest;
 			sourceTree = "<group>";
 		};
@@ -423,6 +436,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = encryptKeyTest/Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -468,6 +482,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = encryptKeyTest/Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
