@@ -6,7 +6,7 @@
 //
 
 
-struct AppConfiguration: Decodable {
+struct AppConfiguration: Sendable, nonisolated Decodable {
     let HOST_NAME: String
     let CLIENT_ID: String
 }

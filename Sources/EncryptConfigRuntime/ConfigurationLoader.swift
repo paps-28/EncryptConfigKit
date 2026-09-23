@@ -46,7 +46,7 @@ public final class ConfigurationLoader {
         return object as? [String: Any] ?? [:]
     }
 
-    public func loadDecodable<T: Decodable>(
+    public func loadDecodable<T: Decodable & Sendable>(
         _ type: T.Type,
         from configuration: EncryptedConfiguration
     ) async throws -> T {
