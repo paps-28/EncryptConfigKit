@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		ED8D3B9B306343AD003E6B39 /* encrypt-config.json in Resources */ = {isa = PBXBuildFile; fileRef = ED8D3B9A306343AD003E6B39 /* encrypt-config.json */; };
 		ED8D3BE43063468C003E6B39 /* EncryptConfigCore in Frameworks */ = {isa = PBXBuildFile; productRef = ED8D3BE33063468C003E6B39 /* EncryptConfigCore */; };
 		ED8D3BE63063468C003E6B39 /* EncryptConfigRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = ED8D3BE53063468C003E6B39 /* EncryptConfigRuntime */; };
 /* End PBXBuildFile section */
@@ -40,6 +39,7 @@
 		957A393630643A0D000B9E22 /* Exceptions for "encryptKeyTest" folder in "encryptKeyTest" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				config/SecretsConfig.dev.plist,
 				Info.plist,
 			);
 			target = ED2351612FF42F3600C4D7BF /* encryptKeyTest */;
@@ -241,7 +241,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ED8D3B9B306343AD003E6B39 /* encrypt-config.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
