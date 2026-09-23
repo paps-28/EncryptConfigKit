@@ -10,7 +10,6 @@
 		ED8D3B9B306343AD003E6B39 /* encrypt-config.json in Resources */ = {isa = PBXBuildFile; fileRef = ED8D3B9A306343AD003E6B39 /* encrypt-config.json */; };
 		ED8D3BE43063468C003E6B39 /* EncryptConfigCore in Frameworks */ = {isa = PBXBuildFile; productRef = ED8D3BE33063468C003E6B39 /* EncryptConfigCore */; };
 		ED8D3BE63063468C003E6B39 /* EncryptConfigRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = ED8D3BE53063468C003E6B39 /* EncryptConfigRuntime */; };
-		ED8D3BE83063468C003E6B39 /* EncryptConfigCLI in Frameworks */ = {isa = PBXBuildFile; productRef = ED8D3BE73063468C003E6B39 /* EncryptConfigCLI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,7 +72,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ED8D3BE83063468C003E6B39 /* EncryptConfigCLI in Frameworks */,
 				ED8D3BE43063468C003E6B39 /* EncryptConfigCore in Frameworks */,
 				ED8D3BE63063468C003E6B39 /* EncryptConfigRuntime in Frameworks */,
 			);
@@ -140,7 +138,6 @@
 			packageProductDependencies = (
 				ED8D3BE33063468C003E6B39 /* EncryptConfigCore */,
 				ED8D3BE53063468C003E6B39 /* EncryptConfigRuntime */,
-				ED8D3BE73063468C003E6B39 /* EncryptConfigCLI */,
 			);
 			productName = encryptKeyTest;
 			productReference = ED2351622FF42F3600C4D7BF /* encryptKeyTest.app */;
@@ -672,10 +669,6 @@
 		ED8D3BE53063468C003E6B39 /* EncryptConfigRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = EncryptConfigRuntime;
-		};
-		ED8D3BE73063468C003E6B39 /* EncryptConfigCLI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = EncryptConfigCLI;
 		};
 		ED8D3BE93063469E003E6B39 /* EncryptConfigPlugin */ = {
 			isa = XCSwiftPackageProductDependency;
