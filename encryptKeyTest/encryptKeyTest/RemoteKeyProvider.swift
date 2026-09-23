@@ -22,9 +22,21 @@ struct RemoteKeyProvider: ConfigurationKeyProvider {
         
         let cipherResponse: EncryptedKeyResponseDTO = try await apiClient.post(endpoint: apiCipherPath, body: PublicKeyRequestDTO(publicKey: rsaPublicKey))
         
-        let decryptedResponse = try rsaProvider.decrypt(Data(base64Encoded: cipherResponse.encryptedKey)!)
-        let decryptedString = String(data: decryptedResponse, encoding: .utf8)
+        guard let encryptedData = Data(base64Encoded: cipherResponse.encryptedKey) else {
+            throw RemoteKeyProviderError.noEncryptedKey
+        }
         
-        return decryptedString!
+        let decryptedResponse = try rsaProvider.decrypt(encryptedData)
+        
+        guard let decryptedString = String(data: decryptedResponse, encoding: .utf8) else {
+            throw RemoteKeyProviderError.invalidDecryption
+        }
+        
+        return decryptedString
     }
+}
+
+enum RemoteKeyProviderError: Error {
+    case noEncryptedKey
+    case invalidDecryption
 }
