@@ -94,7 +94,7 @@ private func writeSwiftSource(
         static let value = EncryptedConfiguration(
             salt: Data(base64Encoded: "\(salt)")!,
             combined: Data(base64Encoded: "\(combined)")!,
-            hash: \(hash)
+            hash: "\(hash)"
         )
     }
     """
