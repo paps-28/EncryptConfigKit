@@ -93,7 +93,7 @@ private func writeSwiftSource(
     enum \(symbol) {
         static let value = EncryptedConfiguration(
             salt: Data(base64Encoded: "\(salt)")!,
-            combined: Data(base64Encoded: "\(combined)")!
+            combined: Data(base64Encoded: "\(combined)")!,
             hash: \(hash)
         )
     }
