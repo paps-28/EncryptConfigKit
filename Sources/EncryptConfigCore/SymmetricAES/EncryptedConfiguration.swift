@@ -11,9 +11,11 @@ import Foundation
 public struct EncryptedConfiguration: Codable, Sendable {
     public let salt: Data
     public let combined: Data
+    public let hash: String
 
-    public init(salt: Data, combined: Data) {
+    public init(salt: Data, combined: Data, hash: String) {
         self.salt = salt
         self.combined = combined
+        self.hash = hash
     }
 }

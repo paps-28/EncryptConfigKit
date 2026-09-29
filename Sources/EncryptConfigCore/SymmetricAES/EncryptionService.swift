@@ -21,6 +21,10 @@ public struct EncryptionService {
         password: String
     ) throws -> EncryptedConfiguration {
         let salt = try Data.secureRandom(count: 16)
+        
+        let configurationHash = SHA256.hash(data: data)
+                .map { String(format: "%02x", $0) }
+                .joined()
 
         let key = keyDeriver.deriveKey(
             password: password,
@@ -38,7 +42,8 @@ public struct EncryptionService {
 
         return EncryptedConfiguration(
             salt: salt,
-            combined: combined
+            combined: combined,
+            hash: configurationHash
         )
     }
 }
