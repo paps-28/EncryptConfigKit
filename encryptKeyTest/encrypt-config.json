@@ -7,11 +7,11 @@
       "keyEnvironmentVariable": "CONFIG_AES_KEY_DEV"
     },
     "qa": {
-      "input": "Secrets/SecretsConfig.qa.plist",
+      "input": "encryptKeyTest/config/SecretsConfig.qa.plist",
       "keyEnvironmentVariable": "CONFIG_AES_KEY_QA"
     },
     "prod": {
-      "input": "Secrets/SecretsConfig.prod.plist",
+      "input": "encryptKeyTest/config/SecretsConfig.prod.plist",
       "keyEnvironmentVariable": "CONFIG_AES_KEY_PROD"
     }
   }

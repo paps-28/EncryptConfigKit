@@ -1,0 +1,12 @@
+//
+//  debug.xcconfig
+//  encryptKeyTest
+//
+//  Created by Pedro Alberto Parra on 30/09/26.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+CONFIG_ENV = dev
+CONFIG_AES_KEY_DEV = eosqFMaSmizdHNGVuYsaGDFpJ2uCB2EGc7RGBm7IKfE=

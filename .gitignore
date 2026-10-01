@@ -4,9 +4,13 @@
 
 ## User settings
 xcuserdata/
+*/.DS_Store
 .DS_Store
+*/.encrypt-config-environment
+
 ## Obj-C/Swift specific
 *.hmap
+
 
 ## App packaging
 *.ipa

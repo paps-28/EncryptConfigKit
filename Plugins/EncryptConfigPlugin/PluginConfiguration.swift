@@ -51,6 +51,12 @@ struct EncryptConfigPlugin: BuildToolPlugin {
         guard let target = target as? SourceModuleTarget else {
             return []
         }
+        
+        let tool = try context.tool(named: "EncryptConfigCLI")
+
+        print("===== TOOL DEBUG =====")
+        print("tool.path = \(tool.path)")
+        print("======================")
 
         return try makeCommands(
             projectDirectory: target.directory,
@@ -69,8 +75,14 @@ extension EncryptConfigPlugin: XcodeBuildToolPlugin {
         context: XcodePluginContext,
         target: XcodeTarget
     ) throws -> [Command] {
+        
+        let tool = try context.tool(named: "EncryptConfigCLI")
 
-        try makeCommands(
+        print("===== TOOL xcode debug =====")
+        print("tool.path = \(tool.path)")
+        print("======================")
+
+        return try makeCommands(
             projectDirectory: context.xcodeProject.directory,
             workDirectory: context.pluginWorkDirectory,
             tool: context.tool(named: "EncryptConfigCLI")
@@ -102,10 +114,27 @@ private func makeCommands(
     let processEnvironment =
         ProcessInfo.processInfo.environment
 
-    let selectedEnvironment =
-        processEnvironment["CONFIG_ENV"]
-        ?? config.defaultEnvironment
+    let environmentFile = projectDirectory
+        .appending(".encrypt-config-environment")
 
+    let selectedEnvironment: String
+
+    if FileManager.default.fileExists(
+        atPath: environmentFile.string
+    ) {
+        let environment = try String(
+            contentsOfFile: environmentFile.string,
+            encoding: .utf8
+        )
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        selectedEnvironment = environment.isEmpty
+            ? config.defaultEnvironment
+            : environment
+    } else {
+        selectedEnvironment = config.defaultEnvironment
+    }
+    
     guard let environmentConfiguration =
         config.environments[selectedEnvironment]
     else {
