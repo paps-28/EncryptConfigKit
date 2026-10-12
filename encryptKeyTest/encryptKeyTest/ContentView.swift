@@ -25,7 +25,7 @@ struct ContentView: View {
         .onAppear {
             Task {
                 let loader = ConfigurationLoader(
-                    keyProvider: RemoteKeyProvider()
+                    keyProvider: LocalKeyProvider()
                 )
                 
                 do {
