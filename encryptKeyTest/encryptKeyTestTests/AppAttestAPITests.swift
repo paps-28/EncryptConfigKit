@@ -127,7 +127,6 @@ final class AppAttestAPITests: XCTestCase {
         do {
             _ = try await fixture.api.encryptedKey(rsaPublicKey: rsaPublicKey)
             XCTFail("Expected invalid challenge")
-        } catch RemoteKeyProviderError.invalidChallenge {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -145,7 +144,6 @@ final class AppAttestAPITests: XCTestCase {
         do {
             _ = try await fixture.api.encryptedKey(rsaPublicKey: rsaPublicKey)
             XCTFail("Expected invalid challenge")
-        } catch RemoteKeyProviderError.invalidChallenge {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -166,7 +164,7 @@ final class AppAttestAPITests: XCTestCase {
         configuration.protocolClasses = [AppAttestTestURLProtocol.self]
         let session = URLSession(configuration: configuration)
         let provider = AppAttestProviderStub()
-        let client = APIClient(baseURL: URL(string: "https://\(host)")!, session: session)
+        let client = APIClient()
         return AppAttestFixture(
             api: AppAttestAPI(client: client, provider: provider),
             provider: provider, session: session, script: script, host: host

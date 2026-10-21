@@ -41,7 +41,6 @@
 			membershipExceptions = (
 				config/SecretsConfig.dev.plist,
 				config/SecretsConfig.qa.plist,
-				encryptKeyTest.entitlements,
 				Info.plist,
 				"resources/env-config/beta.xcconfig",
 				"resources/env-config/debug.xcconfig",
@@ -435,13 +434,14 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = encryptKeyTest/encryptKeyTest.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 775YHCH8YG;
+				DEVELOPMENT_TEAM = 55ZZYY7ZAD;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = encryptKeyTest/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Conectarse al backend local de la demo para verificar App Attest y obtener la clave de configuración cifrada.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -484,13 +484,14 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = encryptKeyTest/encryptKeyTest.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 775YHCH8YG;
+				DEVELOPMENT_TEAM = 55ZZYY7ZAD;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = encryptKeyTest/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Conectarse al backend local de la demo para verificar App Attest y obtener la clave de configuración cifrada.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -699,13 +700,14 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = encryptKeyTest/encryptKeyTest.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 775YHCH8YG;
+				DEVELOPMENT_TEAM = 55ZZYY7ZAD;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = encryptKeyTest/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Conectarse al backend local de la demo para verificar App Attest y obtener la clave de configuración cifrada.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
