@@ -41,6 +41,7 @@
 			membershipExceptions = (
 				config/SecretsConfig.dev.plist,
 				config/SecretsConfig.qa.plist,
+				encryptKeyTest.entitlements,
 				Info.plist,
 				"resources/env-config/beta.xcconfig",
 				"resources/env-config/debug.xcconfig",
@@ -426,8 +427,12 @@
 			baseConfigurationReferenceAnchor = ED2351642FF42F3700C4D7BF /* encryptKeyTest */;
 			baseConfigurationReferenceRelativePath = "resources/env-config/debug.xcconfig";
 			buildSettings = {
+				APP_ATTEST_API_BASE_URL = "http://localhost:8080";
+				APP_ATTEST_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = encryptKeyTest/encryptKeyTest.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = encryptKeyTest/encryptKeyTest.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 775YHCH8YG;
@@ -471,8 +476,12 @@
 		ED2351852FF42F3700C4D7BF /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_ATTEST_API_BASE_URL = "https://localhost:8080";
+				APP_ATTEST_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = encryptKeyTest/encryptKeyTest.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = encryptKeyTest/encryptKeyTest.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 775YHCH8YG;
@@ -682,8 +691,12 @@
 			baseConfigurationReferenceAnchor = ED2351642FF42F3700C4D7BF /* encryptKeyTest */;
 			baseConfigurationReferenceRelativePath = "resources/env-config/beta.xcconfig";
 			buildSettings = {
+				APP_ATTEST_API_BASE_URL = "https://localhost:8080";
+				APP_ATTEST_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = encryptKeyTest/encryptKeyTest.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = encryptKeyTest/encryptKeyTest.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 775YHCH8YG;

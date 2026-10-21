@@ -2,10 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>AppAttestAPIBaseURL</key>
+	<string>$(APP_ATTEST_API_BASE_URL)</string>
+	<key>AppAttestEnvironment</key>
+	<string>$(APP_ATTEST_ENVIRONMENT)</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Conectarse al backend local de la demo para verificar App Attest y obtener la clave de configuración cifrada.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
