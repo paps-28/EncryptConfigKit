@@ -54,14 +54,10 @@ struct EncryptConfigPlugin: BuildToolPlugin {
         
         let tool = try context.tool(named: "EncryptConfigCLI")
 
-        print("===== TOOL DEBUG =====")
-        print("tool.path = \(tool.path)")
-        print("======================")
-
         return try makeCommands(
-            projectDirectory: target.directory,
-            workDirectory: context.pluginWorkDirectory,
-            tool: context.tool(named: "EncryptConfigCLI")
+            projectDirectory: URL(fileURLWithPath: target.directory.string),
+            workDirectory: context.pluginWorkDirectoryURL,
+            tool: tool.url
         )
     }
 }
@@ -78,32 +74,26 @@ extension EncryptConfigPlugin: XcodeBuildToolPlugin {
         
         let tool = try context.tool(named: "EncryptConfigCLI")
 
-        print("===== TOOL xcode debug =====")
-        print("tool.path = \(tool.path)")
-        print("======================")
-
         return try makeCommands(
-            projectDirectory: context.xcodeProject.directory,
-            workDirectory: context.pluginWorkDirectory,
-            tool: context.tool(named: "EncryptConfigCLI")
+            projectDirectory: context.xcodeProject.directoryURL,
+            workDirectory: context.pluginWorkDirectoryURL,
+            tool: tool.url
         )
     }
 }
 #endif
 
 private func makeCommands(
-    projectDirectory: Path,
-    workDirectory: Path,
-    tool: PluginContext.Tool
+    projectDirectory: URL,
+    workDirectory: URL,
+    tool: URL
 ) throws -> [Command] {
 
     let configFile = projectDirectory
-        .appending("encrypt-config.json")
+        .appendingPathComponent("encrypt-config.json")
 
     let configData = try Data(
-        contentsOf: URL(
-            fileURLWithPath: configFile.string
-        )
+        contentsOf: configFile
     )
 
     let config = try JSONDecoder().decode(
@@ -111,19 +101,16 @@ private func makeCommands(
         from: configData
     )
 
-    let processEnvironment =
-        ProcessInfo.processInfo.environment
-
     let environmentFile = projectDirectory
-        .appending(".encrypt-config-environment")
+        .appendingPathComponent(".encrypt-config-environment")
 
     let selectedEnvironment: String
 
     if FileManager.default.fileExists(
-        atPath: environmentFile.string
+        atPath: environmentFile.path
     ) {
         let environment = try String(
-            contentsOfFile: environmentFile.string,
+            contentsOf: environmentFile,
             encoding: .utf8
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -143,9 +130,9 @@ private func makeCommands(
         )
     }
 
-    let inputFile = resolvePath(
+    let inputFile = resolveURL(
         environmentConfiguration.input,
-        relativeTo: configFile
+        relativeTo: configFile.deletingLastPathComponent()
     )
 
     let symbol =
@@ -153,23 +140,23 @@ private func makeCommands(
         ?? "EncryptedConfigResource"
 
     let outputFile = workDirectory
-        .appending("\(symbol).generated.swift")
+        .appendingPathComponent("\(symbol).generated.swift")
 
     return [
         .buildCommand(
             displayName: """
             Encrypt configuration (\(selectedEnvironment))
             """,
-            executable: tool.path,
+            executable: tool,
             arguments: [
                 "--config",
-                configFile.string,
+                configFile.path,
 
                 "--environment",
                 selectedEnvironment,
 
                 "--output",
-                outputFile.string,
+                outputFile.path,
 
                 "--emit",
                 "swift",
@@ -188,21 +175,16 @@ private func makeCommands(
     ]
 }
 
-private func resolvePath(
+private func resolveURL(
     _ path: String,
-    relativeTo configFile: Path
-) -> Path {
+    relativeTo configFileDirectory: URL
+) -> URL {
 
     if path.hasPrefix("/") {
-        return Path(path)
+        return URL(fileURLWithPath: path)
     }
 
-    /*
-     El input del JSON se interpreta respecto a la carpeta
-     donde se encuentra encrypt-config.json.
-     */
-
-    let configDirectory = configFile.removingLastComponent()
-
-    return configDirectory.appending(path)
+    return configFileDirectory
+        .appendingPathComponent(path)
+        .standardizedFileURL
 }
