@@ -17,6 +17,7 @@
                      BuildableIdentifier = "primary"
                      BlueprintIdentifier = "ED2351612FF42F3600C4D7BF"
                      BuildableName = "encryptKeyTest.app"
+                     BlueprintName = "encryptKeyTest"
                      ReferencedContainer = "container:encryptKeyTest.xcodeproj">
                   </BuildableReference>
                </EnvironmentBuildable>
@@ -43,6 +44,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "ED2351612FF42F3600C4D7BF"
                BuildableName = "encryptKeyTest.app"
+               BlueprintName = "encryptKeyTest"
                ReferencedContainer = "container:encryptKeyTest.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -62,6 +64,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "ED23516E2FF42F3700C4D7BF"
                BuildableName = "encryptKeyTestTests.xctest"
+               BlueprintName = "encryptKeyTestTests"
                ReferencedContainer = "container:encryptKeyTest.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -72,6 +75,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "ED2351782FF42F3700C4D7BF"
                BuildableName = "encryptKeyTestUITests.xctest"
+               BlueprintName = "encryptKeyTestUITests"
                ReferencedContainer = "container:encryptKeyTest.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -94,6 +98,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "ED2351612FF42F3600C4D7BF"
             BuildableName = "encryptKeyTest.app"
+            BlueprintName = "encryptKeyTest"
             ReferencedContainer = "container:encryptKeyTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -110,6 +115,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "ED2351612FF42F3600C4D7BF"
             BuildableName = "encryptKeyTest.app"
+            BlueprintName = "encryptKeyTest"
             ReferencedContainer = "container:encryptKeyTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
