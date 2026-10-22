@@ -1,9 +1,5 @@
 package com.crypt.crypto_api_demo.controller;
 
-import java.security.KeyFactory;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 
 import com.crypt.crypto_api_demo.dto.EncryptedKeyResponse;
 import com.crypt.crypto_api_demo.service.AppAttestService;
@@ -51,18 +47,17 @@ public class AppAttestController {
         if (aesKey.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "App Attest AES key is not configured");
         }
-        // The exact DER bytes hashed by Swift are also the key used for encryption.
-        byte[] der = AppAttestService.decode(request.publicKey(), 16_384, "publicKey");
+        // Use the same PEM/Base64 parser as CryptoController, but bind its DER to the assertion.
+        RsaEncryptionService.ParsedPublicKey publicKey;
         try {
-            RSAPublicKey key = (RSAPublicKey) KeyFactory.getInstance("RSA")
-                    .generatePublic(new X509EncodedKeySpec(der));
-            if (key.getModulus().bitLength() < 2048 || key.getModulus().bitLength() > 8192) {
+            publicKey = rsa.parsePublicKey(request.publicKey());
+            if (publicKey.key().getModulus().bitLength() < 2048 || publicKey.key().getModulus().bitLength() > 8192) {
                 throw new IllegalArgumentException("Invalid RSA size");
             }
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "publicKey must be a Base64 DER X.509 RSA key (2048–8192 bits)");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "publicKey must be a PEM or Base64 DER X.509 RSA key (2048–8192 bits)");
         }
-        appAttest.assertKey(request.keyId(), request.challengeId(), request.assertionObject(), der);
-        return new EncryptedKeyResponse(rsa.encrypt(aesKey, Base64.getEncoder().encodeToString(der)));
+        appAttest.assertKey(request.keyId(), request.challengeId(), request.assertionObject(), publicKey.der());
+        return new EncryptedKeyResponse(rsa.encrypt(aesKey, publicKey.key()));
     }
 }

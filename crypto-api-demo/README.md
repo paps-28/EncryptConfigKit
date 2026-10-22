@@ -79,7 +79,8 @@ let assertion = try await manager.generateAssertion(
     challenge: challengeData,
     rsaPublicKey: rsaDER
 )
-// Envía rsaBase64 como publicKey y assertion.base64EncodedString().
+// Envía PEM como publicKey (también se admite rsaBase64) y assertion.base64EncodedString().
+// El PEM debe envolver los mismos bytes rsaDER usados para generar la assertion.
 ```
 
 `POST /api/crypto/app-attest/public-key`
@@ -89,7 +90,7 @@ let assertion = try await manager.generateAssertion(
   "keyId": "<keyId registrado>",
   "challengeId": "<challengeId de ASSERTION>",
   "assertionObject": "<assertion en Base64>",
-  "publicKey": "<RSA DER X.509 SubjectPublicKeyInfo en Base64, sin cabeceras PEM>"
+  "publicKey": "-----BEGIN PUBLIC KEY-----\n<RSA DER X.509 SubjectPublicKeyInfo en Base64>\n-----END PUBLIC KEY-----"
 }
 ```
 
@@ -101,7 +102,9 @@ Respuesta `200`:
 }
 ```
 
-La firma vincula **los mismos bytes DER** utilizados para cifrar la respuesta. El backend replica exactamente el payload de Swift:
+`publicKey` acepta PEM (`BEGIN PUBLIC KEY`) o Base64 DER, igual que `CryptoController`. Ambos controladores reutilizan el parser y el cifrado de `RsaEncryptionService`: RSA-OAEP SHA-512 con MGF1 SHA-512. No se acepta PKCS#1 (`BEGIN RSA PUBLIC KEY`).
+
+El endpoint protegido primero verifica el challenge, la assertion y su contador; solo después cifra la contraseña AES configurada en `APP_ATTEST_AES_KEY`. No usa la clave hardcodeada del endpoint de demostración. La firma vincula **los mismos bytes DER originales** extraídos del PEM o Base64 y utilizados para cifrar la respuesta, no el texto PEM. El backend replica exactamente el payload de Swift:
 
 ```text
 clientDataHash = SHA256(UTF8("EncryptConfigKit.AppAttest.AESKey.v1") || 0x00 || challenge || rsaDER)

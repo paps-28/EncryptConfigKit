@@ -69,7 +69,8 @@ final class AppAttestAPI {
                 keyId: keyId,
                 challengeId: challenge.challengeId,
                 assertionObject: assertion.base64EncodedString(),
-                publicKey: rsaPublicKey.base64EncodedString()
+                // Same PEM transport as CryptoController; the assertion still hashes raw DER.
+                publicKey: "-----BEGIN PUBLIC KEY-----\n\(rsaPublicKey.base64EncodedString())\n-----END PUBLIC KEY-----"
             )
         )
     }

@@ -216,7 +216,7 @@ final class AppAttestAPITests: XCTestCase {
             "keyId": "test-key-id",
             "challengeId": "assertion-id",
             "assertionObject": Data([0xff, 0x00, 0x81, 0x42]).base64EncodedString(),
-            "publicKey": rsaPublicKey.base64EncodedString()
+            "publicKey": "-----BEGIN PUBLIC KEY-----\n\(rsaPublicKey.base64EncodedString())\n-----END PUBLIC KEY-----"
         ])
     }
 }
