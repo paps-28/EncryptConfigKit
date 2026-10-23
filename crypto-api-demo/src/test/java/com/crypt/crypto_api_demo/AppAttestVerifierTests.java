@@ -111,6 +111,47 @@ class AppAttestVerifierTests {
                 validAssertion, CHALLENGE, rsaPublicKey));
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {0x00, 0x40})
+    void acceptsSimplifiedAssertionWithOrWithoutAtFlag(int flags) throws Exception {
+        byte[] object = assertion(1, clientDataHash(), appKey.getPrivate(), flags);
+        assertEquals(37, CBOR.readTree(object).get("authenticatorData").binaryValue().length);
+        assertEquals(1, verifier.verifyAssertion(appKey.getPublic(), 0, object, CHALLENGE, rsaPublicKey));
+    }
+
+    @Test
+    void rejectsChangingAtFlagWithoutResigning() throws Exception {
+        var original = CBOR.readTree(validAssertion);
+        byte[] authData = original.get("authenticatorData").binaryValue();
+        authData[32] ^= 0x40;
+        byte[] altered = CBOR.writeValueAsBytes(Map.of("authenticatorData", authData,
+                "signature", original.get("signature").binaryValue()));
+        status(403, () -> verifier.verifyAssertion(appKey.getPublic(), 0, altered, CHALLENGE, rsaPublicKey));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {36, 38})
+    void rejectsSimplifiedAssertionWithInvalidLength(int length) throws Exception {
+        byte[] authData = Arrays.copyOf(assertionHeader(1), length);
+        byte[] object = CBOR.writeValueAsBytes(Map.of("authenticatorData", authData,
+                "signature", sign("NONEwithECDSA", appKey.getPrivate(), hash(hash(authData, clientDataHash())))));
+        status(400, () -> verifier.verifyAssertion(appKey.getPublic(), 0, object, CHALLENGE, rsaPublicKey));
+    }
+
+    @Test
+    void attestationStillRequiresAtFlag() throws Exception {
+        byte[] object = attestation("production", CHALLENGE, false, 0);
+        status(400, () -> verifier.verifyAttestation(keyIdString(), object, CHALLENGE));
+    }
+
+    @Test
+    void rejectsSignatureOverConcatenationInsteadOfNonce() throws Exception {
+        byte[] authData = assertionHeader(1);
+        byte[] signature = sign("SHA256withECDSA", appKey.getPrivate(), concat(authData, clientDataHash()));
+        byte[] object = CBOR.writeValueAsBytes(Map.of("authenticatorData", authData, "signature", signature));
+        status(403, () -> verifier.verifyAssertion(appKey.getPublic(), 0, object, CHALLENGE, rsaPublicKey));
+    }
+
     @Test
     void bindsAssertionToRawRsaKeyAndChallenge() {
         assertAll(
@@ -183,12 +224,12 @@ class AppAttestVerifierTests {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0x40, 0x80})
+    @ValueSource(ints = {0x80, 0xc0, 0x02, 0x20, 0x10, 0x50})
     void rejectsUnsupportedAssertionFlags(int flags) throws Exception {
         byte[] authData = assertionHeader(1);
         authData[32] = (byte) flags;
         byte[] object = CBOR.writeValueAsBytes(Map.of("authenticatorData", authData,
-                "signature", CBOR.readTree(validAssertion).get("signature").binaryValue()));
+                "signature", sign("NONEwithECDSA", appKey.getPrivate(), hash(hash(authData, clientDataHash())))));
         status(400, () -> verifier.verifyAssertion(appKey.getPublic(), 0, object, CHALLENGE, rsaPublicKey));
     }
 
@@ -206,9 +247,14 @@ class AppAttestVerifierTests {
 
     private static byte[] attestation(String environment, byte[] nonceChallenge, boolean wrongCose)
             throws Exception {
+        return attestation(environment, nonceChallenge, wrongCose, 0x40);
+    }
+
+    private static byte[] attestation(String environment, byte[] nonceChallenge, boolean wrongCose, int flags)
+            throws Exception {
         byte[] header = new byte[87];
         System.arraycopy(hash(utf8(APP_ID)), 0, header, 0, 32);
-        header[32] = 0x40;
+        header[32] = (byte) flags;
         byte[] aaguid = Arrays.copyOf(utf8("development".equals(environment)
                 ? "appattestdevelop" : "appattest"), 16);
         System.arraycopy(aaguid, 0, header, 37, 16);
@@ -242,14 +288,19 @@ class AppAttestVerifierTests {
     }
 
     private static byte[] assertion(long counter, byte[] clientHash, PrivateKey signer) throws Exception {
+        return assertion(counter, clientHash, signer, 0x40);
+    }
+
+    private static byte[] assertion(long counter, byte[] clientHash, PrivateKey signer, int flags) throws Exception {
         byte[] authData = assertionHeader(counter);
-        // Sign Apple's already-hashed nonce directly, independently of SHA256withECDSA in main.
-        byte[] signature = sign("NONEwithECDSA", signer, hash(authData, clientHash));
+        authData[32] = (byte) flags;
+        // Independently prehash both layers: nonce=SHA256(authData||clientHash), then SHA256(nonce).
+        byte[] signature = sign("NONEwithECDSA", signer, hash(hash(authData, clientHash)));
         return CBOR.writeValueAsBytes(Map.of("authenticatorData", authData, "signature", signature));
     }
 
     private static byte[] assertionHeader(long counter) throws Exception {
-        return ByteBuffer.allocate(37).put(hash(utf8(APP_ID))).put((byte) 0).putInt((int) counter).array();
+        return ByteBuffer.allocate(37).put(hash(utf8(APP_ID))).put((byte) 0x40).putInt((int) counter).array();
     }
 
     private static X509Certificate certificate(PublicKey subject, PrivateKey signer, boolean ca, byte[] nonce)

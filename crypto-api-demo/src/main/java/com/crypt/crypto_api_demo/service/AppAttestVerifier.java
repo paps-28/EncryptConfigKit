@@ -181,19 +181,24 @@ public class AppAttestVerifier {
         byte[] clientDataHash = sha256(ASSERTION_DOMAIN, new byte[]{0}, challenge, rsaPublicKey);
         log.debug("App Attest assertion stage=signature");
         try {
-            Signature verifier = Signature.getInstance("SHA256withECDSA");
-            verifier.initVerify(publicKey);
-            // Apple signs nonce = SHA256(authData || clientDataHash). The JCA algorithm
-            // performs that hash; hashing clientDataHash again would verify the wrong message.
-            verifier.update(authData);
-            verifier.update(clientDataHash);
-            if (!verifier.verify(signature)) {
+            if (!verifyAssertionSignature(publicKey, authData, clientDataHash, signature)) {
                 throw invalid("Invalid assertion signature");
             }
             return nextCounter;
         } catch (GeneralSecurityException e) {
             throw invalid("Invalid assertion signature");
         }
+    }
+
+    static boolean verifyAssertionSignature(ECPublicKey publicKey, byte[] authData,
+                                            byte[] clientDataHash, byte[] signature) throws GeneralSecurityException {
+        // App Attest signs the nonce as a message with ECDSA/SHA-256, not as a raw digest.
+        // Preserve the original authenticator bytes, including flags, when constructing it.
+        byte[] nonce = sha256(authData, clientDataHash);
+        Signature verifier = Signature.getInstance("SHA256withECDSA");
+        verifier.initVerify(publicKey);
+        verifier.update(nonce);
+        return verifier.verify(signature);
     }
 
     private void checkConfiguration() {
@@ -372,8 +377,22 @@ public class AppAttestVerifier {
 
     private void checkHeader(byte[] authData, boolean attestation) {
         int flags = authData[32] & 0xff;
-        if ((flags & FLAG_ED) != 0 || ((flags & FLAG_AT) != 0) != attestation
-                || (flags & 0x22) != 0 || ((flags & 0x10) != 0 && (flags & 0x08) == 0)) {
+        boolean hasAttestedData = (flags & FLAG_AT) != 0;
+        boolean hasExtensions = (flags & FLAG_ED) != 0;
+        boolean reservedBitsSet = (flags & 0x22) != 0;
+        boolean invalidBackupState = (flags & 0x10) != 0 && (flags & 0x08) == 0;
+        String operation = attestation ? "register" : "assertion";
+        String flagsHex = String.format("0x%02X", flags);
+        // Flags are one byte of protocol metadata, not a key, challenge or proof.
+        log.debug("App Attest {} stage=authenticator-flags flags={} AT={} ED={} reservedBitsSet={} invalidBackupState={} authDataBytes={}",
+                operation, flagsHex, hasAttestedData, hasExtensions, reservedBitsSet, invalidBackupState, authData.length);
+        // App Attest can retain AT in its simplified 37-byte assertion header.
+        // Require AT for attestation, but do not infer extra assertion data from that bit.
+        // verifyAssertion enforces the header length and verifies the signature over every byte.
+        boolean missingAttestedData = attestation && !hasAttestedData;
+        if (hasExtensions || missingAttestedData || reservedBitsSet || invalidBackupState) {
+            log.warn("App Attest {} unsupported flags={} AT={} requiresAT={} ED={} reservedBitsSet={} invalidBackupState={}",
+                    operation, flagsHex, hasAttestedData, attestation, hasExtensions, reservedBitsSet, invalidBackupState);
             throw malformed("Unsupported authenticator flags");
         }
         if (!MessageDigest.isEqual(Arrays.copyOf(authData, 32),

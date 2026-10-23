@@ -122,7 +122,9 @@ El endpoint protegido primero verifica el challenge, la assertion y su contador;
 clientDataHash = SHA256(UTF8("EncryptConfigKit.AppAttest.AESKey.v1") || 0x00 || challenge || rsaDER)
 ```
 
-Se comprueba la firma ECDSA de `authenticatorData || clientDataHash`, el App ID y un contador uint32 estrictamente creciente. Cada entrega requiere un challenge y una assertion nuevos.
+Se calcula `nonce = SHA256(authenticatorData || clientDataHash)` usando los bytes originales, incluidos los flags. Ese nonce de 32 bytes se verifica como **mensaje** con `SHA256withECDSA`, que aplica su propia capa SHA-256. No es equivalente a entregar directamente la concatenación al verificador ni a verificar el nonce como un digest sin hashear. No se utiliza fallback al cálculo anterior. También se comprueban el App ID y un contador uint32 estrictamente creciente. Cada entrega requiere un challenge y una assertion nuevos.
+
+Este cálculo sigue los pasos de [Apple para verificar assertions](https://developer.apple.com/documentation/devicecheck/validating-apps-that-connect-to-your-server#Verify-the-assertion) y se contrasta con un vector público de [node-app-attest, revisión fijada](https://github.com/uebelack/node-app-attest/blob/f16c4bb71b737466872bc8b8a7dfd215364eaa83/test/verifyAssertion.test.js).
 
 ## Errores y límites
 
@@ -149,4 +151,4 @@ Añade HTTPS, límites de cuerpo HTTP y rate limiting por cliente en el proxy, a
 ./mvnw test
 ```
 
-Los tests criptográficos usan certificados sintéticos, no dispositivos ni servicios de Apple. Para comprobar el flujo completo hace falta una app firmada en un dispositivo físico compatible y una atestación real del entorno configurado.
+Los tests criptográficos usan certificados sintéticos y un vector público de firma/assertion fijado en el repositorio; no llaman a dispositivos ni servicios de Apple. El vector externo permite detectar diferencias de hash que un generador y un verificador sintéticos podrían compartir por error. Para comprobar el flujo completo hace falta una app firmada en un dispositivo físico compatible y una atestación real del entorno configurado.
