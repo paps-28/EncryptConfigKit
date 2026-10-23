@@ -5,6 +5,7 @@
 
 import SwiftUI
 import EncryptConfigRuntime
+import OSLog
 
 struct ContentView: View {
     @State private var status = "Validando la app con App Attest…"
@@ -35,11 +36,14 @@ struct ContentView: View {
         isLoading = true
         status = "Validando la app con App Attest…"
         defer { isLoading = false }
+        AppAttestLog.flow.info("stage=configuration.load started")
         do {
             let loader = ConfigurationLoader(keyProvider: RemoteKeyProvider.shared)
             _ = try await loader.loadDecodable(AppConfiguration.self, from: EncryptedConfigResource.value)
+            AppAttestLog.flow.info("stage=configuration.load succeeded")
             status = "App verificada. Configuración descifrada correctamente."
         } catch {
+            AppAttestLog.failure(error, stage: "configuration.load")
             status = error.localizedDescription
         }
     }

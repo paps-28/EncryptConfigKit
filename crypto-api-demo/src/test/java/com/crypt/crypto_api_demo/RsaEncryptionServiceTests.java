@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.security.spec.MGF1ParameterSpec;
 import java.util.Base64;
 import java.util.stream.Stream;
@@ -24,18 +23,20 @@ class RsaEncryptionServiceTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("publicKeyFormats")
-    void parsesExactDerAndBothEncryptOverloadsRoundTrip(String format, String publicKey, KeyPair key)
+    void pemAndBase64EncryptionRoundTrip(String format, String publicKey, KeyPair key)
             throws Exception {
         var service = new RsaEncryptionService();
-        var parsed = service.parsePublicKey(publicKey);
-        var expected = (RSAPublicKey) key.getPublic();
-        assertArrayEquals(expected.getEncoded(), parsed.der());
-        assertEquals(expected.getModulus(), parsed.key().getModulus());
-        assertEquals(expected.getPublicExponent(), parsed.key().getPublicExponent());
 
         String plaintext = "test-aes-key-base64-ñ";
         assertEquals(plaintext, decrypt(service.encrypt(plaintext, publicKey), key.getPrivate()));
-        assertEquals(plaintext, decrypt(service.encrypt(plaintext, parsed.key()), key.getPrivate()));
+    }
+
+    static Stream<Arguments> base64DerKeys() {
+        return Stream.of(Arguments.of("Base64", Base64.getEncoder().encodeToString(KEY.getPublic().getEncoded()), KEY));
+    }
+
+    static Stream<Arguments> nonDerTextFormats() {
+        return publicKeyFormats().skip(1);
     }
 
     static Stream<Arguments> publicKeyFormats() {

@@ -18,6 +18,18 @@ La raíz pública de confianza se incluye en `src/main/resources/apple-app-attes
 
 No se aceptan raíces proporcionadas por el cliente. Si falta el App ID o la clave AES requerida, la operación correspondiente devuelve `503`.
 
+## Ejecución y logs
+
+Con las variables anteriores configuradas en el entorno, ejecuta desde `crypto-api-demo`:
+
+```sh
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8080 --server.address=0.0.0.0 --logging.level.com.crypt.crypto_api_demo=DEBUG"
+```
+
+`0.0.0.0` expone el puerto en todas las interfaces: úsalo solo en una red de pruebas controlada; en producción aplica HTTPS y controles de acceso.
+
+Los logs `INFO` indican inicio/éxito de challenge, registro, assertion y cifrado. `DEBUG` muestra etapas de validación (certificados, identidad, nonce y firma), propósitos, tamaños y contadores, sin sus valores criptográficos. Los rechazos HTTP se registran en `WARN` con operación, estado y razón estática; los errores inesperados en `ERROR` solo incluyen la operación y la clase de excepción, sin mensaje ni stack trace. No se registran IDs de entrada, challenges, claves RSA/AES, attestation/assertion, payloads ni cuerpos de petición. No habilites trazas de cuerpos HTTP en otros componentes.
+
 ## 1. Obtener challenge de atestación
 
 Obtén primero `keyId` con `try await manager.getOrCreateKeyId()`.
@@ -79,8 +91,8 @@ let assertion = try await manager.generateAssertion(
     challenge: challengeData,
     rsaPublicKey: rsaDER
 )
-// Envía PEM como publicKey (también se admite rsaBase64) y assertion.base64EncodedString().
-// El PEM debe envolver los mismos bytes rsaDER usados para generar la assertion.
+// Envía rsaBase64 como publicKey y assertion.base64EncodedString().
+// Debe codificar los mismos bytes rsaDER usados para generar la assertion.
 ```
 
 `POST /api/crypto/app-attest/public-key`
@@ -90,7 +102,7 @@ let assertion = try await manager.generateAssertion(
   "keyId": "<keyId registrado>",
   "challengeId": "<challengeId de ASSERTION>",
   "assertionObject": "<assertion en Base64>",
-  "publicKey": "-----BEGIN PUBLIC KEY-----\n<RSA DER X.509 SubjectPublicKeyInfo en Base64>\n-----END PUBLIC KEY-----"
+  "publicKey": "<RSA DER X.509 SubjectPublicKeyInfo en Base64 estándar, sin saltos ni espacios>"
 }
 ```
 
@@ -102,9 +114,9 @@ Respuesta `200`:
 }
 ```
 
-`publicKey` acepta PEM (`BEGIN PUBLIC KEY`) o Base64 DER, igual que `CryptoController`. Ambos controladores reutilizan el parser y el cifrado de `RsaEncryptionService`: RSA-OAEP SHA-512 con MGF1 SHA-512. No se acepta PKCS#1 (`BEGIN RSA PUBLIC KEY`).
+El endpoint protegido acepta `publicKey` **solo como Base64 estándar de DER X.509 SubjectPublicKeyInfo**, con RSA de 2048–8192 bits y un máximo de 16 384 bytes DER. No acepta PEM, espacios, saltos de línea ni PKCS#1. El endpoint original `/api/crypto/public-key` conserva su soporte PEM/Base64. Ambos usan RSA-OAEP SHA-512 con MGF1 SHA-512 para el cifrado.
 
-El endpoint protegido primero verifica el challenge, la assertion y su contador; solo después cifra la contraseña AES configurada en `APP_ATTEST_AES_KEY`. No usa la clave hardcodeada del endpoint de demostración. La firma vincula **los mismos bytes DER originales** extraídos del PEM o Base64 y utilizados para cifrar la respuesta, no el texto PEM. El backend replica exactamente el payload de Swift:
+El endpoint protegido primero verifica el challenge, la assertion y su contador; solo después cifra la contraseña AES configurada en `APP_ATTEST_AES_KEY`. No usa la clave hardcodeada del endpoint de demostración. La firma vincula **los mismos bytes DER originales** decodificados del Base64 y utilizados para cifrar la respuesta, no su representación textual. El backend replica exactamente el payload de Swift:
 
 ```text
 clientDataHash = SHA256(UTF8("EncryptConfigKit.AppAttest.AESKey.v1") || 0x00 || challenge || rsaDER)

@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AppAttestService {
+    private static final Logger log = LoggerFactory.getLogger(AppAttestService.class);
     public enum Purpose { ATTESTATION, ASSERTION }
     public record ChallengeResponse(String challengeId, String challenge, Instant expiresAt) {}
     private record Challenge(String keyId, Purpose purpose, byte[] value, Instant expiresAt) {}
@@ -41,6 +44,7 @@ public class AppAttestService {
 
     // In-memory demo storage: synchronization makes challenge consumption and counters atomic.
     public synchronized ChallengeResponse challenge(String keyId, Purpose purpose) {
+        log.debug("App Attest challenge stage=validation purpose={}", purpose);
         validateKeyId(keyId);
         if (purpose == null) {
             throw badRequest("purpose is required");
@@ -61,10 +65,12 @@ public class AppAttestService {
         String id = UUID.randomUUID().toString();
         Instant expiresAt = now.plus(Duration.ofMinutes(5));
         challenges.put(id, new Challenge(keyId, purpose, value, expiresAt));
+        log.debug("App Attest challenge stage=stored purpose={} bytes={}", purpose, value.length);
         return new ChallengeResponse(id, Base64.getEncoder().encodeToString(value), expiresAt);
     }
 
     public synchronized void attest(String keyId, String challengeId, String attestationObject) {
+        log.debug("App Attest register stage=validation");
         validateKeyId(keyId);
         Challenge challenge = consume(challengeId, keyId, Purpose.ATTESTATION);
         if (credentials.containsKey(keyId)) {
@@ -73,25 +79,33 @@ public class AppAttestService {
         if (credentials.size() >= MAX_ENTRIES) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Demo credential store is full");
         }
+        log.debug("App Attest register stage=cryptographic-verification");
         PublicKey key = verifier.verifyAttestation(keyId,
                 decode(attestationObject, 65_536, "attestationObject"), challenge.value());
         credentials.put(keyId, new Credential(key, 0));
+        log.debug("App Attest register stage=stored counter=0");
     }
 
     public synchronized void assertKey(String keyId, String challengeId, String assertionObject,
                                        byte[] rsaPublicKey) {
+        log.info("App Attest assertion start");
+        log.debug("App Attest assertion stage=validation");
         validateKeyId(keyId);
         Challenge challenge = consume(challengeId, keyId, Purpose.ASSERTION);
         Credential credential = credentials.get(keyId);
         if (credential == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "App Attest key is not registered");
         }
+        log.debug("App Attest assertion stage=cryptographic-verification previousCounter={}", credential.counter());
         long counter = verifier.verifyAssertion(credential.publicKey(), credential.counter(),
                 decode(assertionObject, 65_536, "assertionObject"), challenge.value(), rsaPublicKey);
         credentials.put(keyId, new Credential(credential.publicKey(), counter));
+        log.debug("App Attest assertion stage=stored counter={}", counter);
+        log.info("App Attest assertion success");
     }
 
     private Challenge consume(String id, String keyId, Purpose purpose) {
+        log.debug("App Attest stage=challenge-consumption purpose={}", purpose);
         if (id == null || id.isBlank() || id.length() > 64) {
             throw badRequest("Invalid challengeId");
         }
@@ -100,6 +114,7 @@ public class AppAttestService {
                 || !challenge.keyId().equals(keyId) || challenge.purpose() != purpose) {
             throw badRequest("Challenge is expired, consumed or does not match this operation");
         }
+        log.debug("App Attest stage=challenge-validated purpose={}", purpose);
         return challenge;
     }
 

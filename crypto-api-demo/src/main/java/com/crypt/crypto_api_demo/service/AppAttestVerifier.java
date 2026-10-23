@@ -12,6 +12,8 @@ import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.BERTags;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.HttpStatus;
@@ -46,6 +48,7 @@ import java.util.Set;
 
 @Service
 public class AppAttestVerifier {
+    private static final Logger log = LoggerFactory.getLogger(AppAttestVerifier.class);
 
     private static final int MAX_CBOR_BYTES = 65_536;
     private static final int MAX_CHALLENGE_BYTES = 4_096;
@@ -90,10 +93,12 @@ public class AppAttestVerifier {
     }
 
     public PublicKey verifyAttestation(String keyId, byte[] attestationObject, byte[] challenge) {
+        log.debug("App Attest register stage=configuration-and-root");
         checkConfiguration();
         X509Certificate root = rootCertificate();
         requireBytes(challenge, MAX_CHALLENGE_BYTES, "Invalid challenge");
         byte[] decodedKeyId = decodeKeyId(keyId);
+        log.debug("App Attest register stage=CBOR");
         JsonNode object = readCbor(attestationObject);
         requireFields(object, Set.of("fmt", "attStmt", "authData"));
         JsonNode format = object.get("fmt");
@@ -110,6 +115,7 @@ public class AppAttestVerifier {
         }
         List<X509Certificate> certificates = certificates(statement.get("x5c"));
         X509Certificate leaf = certificates.getFirst();
+        log.debug("App Attest register stage=certificate-chain certificates={}", certificates.size());
         validateChain(certificates, root);
         ECPublicKey publicKey = p256Key(leaf.getPublicKey());
         byte[] authData = binary(object.get("authData"), MAX_CBOR_BYTES, "Invalid authenticator data");
@@ -117,6 +123,7 @@ public class AppAttestVerifier {
         if (authData.length <= AUTHENTICATOR_HEADER_BYTES + 16 + 2 + 32) {
             throw malformed("Truncated attested credential data");
         }
+        log.debug("App Attest register stage=identity-and-environment");
         checkHeader(authData, true);
         if (counter(authData) != 0) {
             throw invalid("Attestation counter must be zero");
@@ -138,7 +145,9 @@ public class AppAttestVerifier {
         }
         // The remaining bytes must contain exactly one COSE key: no extensions or trailing data.
         validateCoseKey(readCbor(Arrays.copyOfRange(authData, 87, authData.length), true), rawPoint);
+        log.debug("App Attest register stage=nonce");
         verifyNonce(leaf, sha256(authData, sha256(challenge)));
+        log.debug("App Attest register stage=cryptographic-verification-complete");
         return publicKey;
     }
 
@@ -152,6 +161,7 @@ public class AppAttestVerifier {
             throw malformed("Previous counter is not uint32");
         }
         ECPublicKey publicKey = p256Key(key);
+        log.debug("App Attest assertion stage=CBOR");
         JsonNode object = readCbor(assertionObject);
         requireFields(object, Set.of("signature", "authenticatorData"));
         byte[] authData = binary(object.get("authenticatorData"), AUTHENTICATOR_HEADER_BYTES,
@@ -159,14 +169,17 @@ public class AppAttestVerifier {
         if (authData.length != AUTHENTICATOR_HEADER_BYTES) {
             throw malformed("Assertion authenticator data must be 37 bytes");
         }
+        log.debug("App Attest assertion stage=identity");
         checkHeader(authData, false);
         long nextCounter = counter(authData);
+        log.debug("App Attest assertion stage=counter previous={} next={}", previousCounter, nextCounter);
         if (nextCounter <= previousCounter) {
             throw invalid("Assertion counter did not increase");
         }
         byte[] signature = binary(object.get("signature"), 72, "Invalid assertion signature");
         validateEcdsaEncoding(signature, publicKey.getParams().getOrder());
         byte[] clientDataHash = sha256(ASSERTION_DOMAIN, new byte[]{0}, challenge, rsaPublicKey);
+        log.debug("App Attest assertion stage=signature");
         try {
             Signature verifier = Signature.getInstance("SHA256withECDSA");
             verifier.initVerify(publicKey);
