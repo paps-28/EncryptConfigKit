@@ -61,7 +61,7 @@ Se elimina **`NSAllowsArbitraryLoads`**: ya no hay bypass global de ATS. Esto ta
 2. Si el servidor conoce la clave, generar la assertion y solicitar la clave AES con `POST /api/crypto/app-attest/public-key`.
 3. Solo ante `404` de clave no registrada, pedir un challenge `ATTESTATION`, atestar y registrar en `POST /api/crypto/app-attest/attest`. Tras el registro, pedir un **nuevo** challenge `ASSERTION` y continuar por assertions.
 4. Si el registro devuelve `409` (ya registrada, por ejemplo por concurrencia), usar la clave registrada: volver a solicitar un challenge `ASSERTION`, sin generar otra clave.
-5. No rotar silenciosamente la clave ante errores. No tratar errores de red, `403` ni otros fallos como permiso para reatestar o regenerar. Los challenges son de un solo uso; cada nueva carga obtiene challenges nuevos. Se decodifica el challenge Base64 a bytes antes de pasarlo a App Attest. La petición de clave usa exactamente los bytes DER X.509 exportados con `RSAKeyManager.publicKeyBase64()`, tanto al firmar como al enviar `publicKey`. La respuesta se descifra con RSA-OAEP SHA-512.
+5. No rotar silenciosamente la clave ante errores. No tratar errores de red, `403` ni otros fallos como permiso para reatestar o regenerar. Los challenges son de un solo uso; cada nueva carga obtiene challenges nuevos. Se decodifica el challenge Base64 a bytes antes de pasarlo a App Attest. La assertion firma exactamente los bytes DER X.509 exportados con `RSAKeyManager.publicKeyBase64()`. La petición envía esos mismos bytes codificados en Base64, sin cabeceras PEM, como `publicKey`. El endpoint protegido valida el DER, verifica la assertion y después cifra la contraseña AES con esa clave. Se revirtió la adaptación al contrato PEM del endpoint sin App Attest; ese endpoint mantiene su comportamiento original. La respuesta se descifra con RSA-OAEP SHA-512 y MGF1 SHA-512.
 
 La app no imprime la configuración descifrada ni la clave AES. Muestra el estado de carga o el error y permite reintentar desde la pantalla. No se almacena una bandera local de «registrada»: se consulta el registro real del servidor antes de decidir si hace falta atestar, lo que también permite recuperar una respuesta de registro perdida cuando el servidor sí la procesó.
 
@@ -75,6 +75,37 @@ En producción se requiere persistencia de registros/contadores y un proceso exp
 
 ## Pruebas del cliente
 
-`encryptKeyTestTests/AppAttestAPITests.swift` contiene siete tests con un proveedor simulado y `URLProtocol`, sin llamar a Apple ni al servidor real. Cubren clave registrada, registro tras `404` y respuesta `204`, conflicto `409`, errores `403`, challenges inválidos y envío de los bytes exactos de challenge/RSA. Ejecútalos desde el Test navigator de Xcode. No requieren soporte real de App Attest.
+`encryptKeyTestTests/AppAttestAPITests.swift` contiene ocho tests con un proveedor simulado y `URLProtocol`, sin llamar a Apple ni al servidor real. Cubren clave registrada, registro tras `404` y respuesta `204`, conflicto `409`, errores `403`, challenges inválidos y envío de los bytes exactos de challenge/RSA. Ejecútalos desde el Test navigator de Xcode. No requieren soporte real de App Attest.
 
-Durante esta implementación se compiló directamente el cliente para iOS arm64 y se ejecutaron los siete tests con XCTest en macOS: todos pasaron. También pasó el typecheck de la pantalla con un recurso generado existente. La compilación integral con `xcodebuild` quedó bloqueada por la versión desactualizada de CoreSimulator y permisos de caché del entorno; no se ha validado un archive firmado ni una atestación real.
+Se compiló directamente el cliente para iOS arm64 y se ejecutaron los ocho tests con XCTest en macOS: todos pasaron. Incluyen un error de Apple con dominio `com.apple.devicecheck.error` y código `2`, comprobando que se propaga sin enviar la atestación al backend. También pasó el typecheck de la pantalla con un recurso generado existente. La compilación integral con `xcodebuild` quedó bloqueada por la versión desactualizada de CoreSimulator y permisos de caché del entorno; no se ha validado un archive firmado ni una atestación real.
+
+## Ver logs de App Attest
+
+### iPhone desde Xcode
+
+1. Ejecuta la app en Debug con el iPhone físico conectado.
+2. Abre **View > Debug Area > Show Debug Area** (`Shift + Command + Y`). En la consola selecciona la salida de la app/todos los mensajes y filtra por **AppAttest**.
+3. Los logs usan `OSLog.Logger`, el bundle identifier como subsystem y las categorías `AppAttest` y `AppAttest.HTTP`. Para mensajes DEBUG habilita su visualización en el visor de logs. Si el scheme define `OS_ACTIVITY_MODE=disable`, quita esa variable porque puede ocultar los logs.
+4. También puedes abrir **Console.app** de macOS, seleccionar el iPhone, iniciar la transmisión y filtrar por categoría `AppAttest` o `AppAttest.HTTP`; habilita los mensajes Info/Debug desde el menú Action si los necesitas.
+
+Las etapas incluyen `device.keyId`, `challenge.request`, `registration`, `apple.attestKey`, `registration.submit`, `apple.generateAssertion`, `aes.request`, `aes.decrypt` y `configuration.load`. Los errores indican la etapa, el dominio/código del error o el estado HTTP, sin imprimir `localizedDescription` ni `userInfo`.
+
+Por ejemplo, esta línea identifica un fallo de Apple **antes** del POST de registro:
+
+```text
+stage=apple.attestKey failed domain=com.apple.devicecheck.error code=2
+```
+
+En cambio, `stage=http.attest failed http_status=400` indica que el backend recibió el POST y lo rechazó. Es normal obtener un `404` en el primer challenge de ASSERTION si la clave todavía no está registrada; después debe comenzar `registration`.
+
+### Backend Java
+
+Desde `crypto-api-demo`, con las variables `APP_ATTEST_*` ya definidas en esa terminal:
+
+```sh
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8080 --server.address=0.0.0.0 --logging.level.com.crypt.crypto_api_demo=DEBUG"
+```
+
+Los logs se ven en esa misma terminal: INFO muestra inicio/éxito, DEBUG las etapas criptográficas, WARN los rechazos con estado y razón, y ERROR los fallos inesperados. No actives registro de cuerpos HTTP para depurar este flujo. Los logs añadidos no imprimen claves, identificadores de credenciales/challenges, contraseña AES, challenges, attestation/assertion ni cuerpos HTTP. Los identificadores `request=` del cliente son trazas aleatorias locales, no los identificadores del protocolo.
+
+Recuerda que reiniciar Java borra el registro en memoria de esta demo, pero no la clave de Keychain del dispositivo; los logs no cambian esa limitación ni regeneran claves automáticamente.

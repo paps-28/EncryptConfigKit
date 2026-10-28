@@ -4,6 +4,10 @@ import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.concurrent.Callable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.crypt.crypto_api_demo.dto.EncryptedKeyResponse;
 import com.crypt.crypto_api_demo.service.AppAttestService;
@@ -20,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/crypto/app-attest")
 public class AppAttestController {
+    private static final Logger log = LoggerFactory.getLogger(AppAttestController.class);
     public record ChallengeRequest(String keyId, AppAttestService.Purpose purpose) {}
     public record AttestationRequest(String keyId, String challengeId, String attestationObject) {}
     public record AssertionRequest(String keyId, String challengeId, String assertionObject, String publicKey) {}
@@ -36,33 +41,59 @@ public class AppAttestController {
     }
 
     @PostMapping("/challenge")
-    public AppAttestService.ChallengeResponse challenge(@RequestBody ChallengeRequest request) {
-        return appAttest.challenge(request.keyId(), request.purpose());
+    public AppAttestService.ChallengeResponse challenge(@RequestBody ChallengeRequest request) throws Exception {
+        return logged("challenge", () -> appAttest.challenge(request.keyId(), request.purpose()));
     }
 
     @PostMapping("/attest")
-    public ResponseEntity<Void> attest(@RequestBody AttestationRequest request) {
-        appAttest.attest(request.keyId(), request.challengeId(), request.attestationObject());
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> attest(@RequestBody AttestationRequest request) throws Exception {
+        return logged("register", () -> {
+            appAttest.attest(request.keyId(), request.challengeId(), request.attestationObject());
+            return ResponseEntity.noContent().build();
+        });
     }
 
     @PostMapping("/public-key")
     public EncryptedKeyResponse publicKey(@RequestBody AssertionRequest request) throws Exception {
-        if (aesKey.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "App Attest AES key is not configured");
-        }
-        // The exact DER bytes hashed by Swift are also the key used for encryption.
-        byte[] der = AppAttestService.decode(request.publicKey(), 16_384, "publicKey");
-        try {
-            RSAPublicKey key = (RSAPublicKey) KeyFactory.getInstance("RSA")
-                    .generatePublic(new X509EncodedKeySpec(der));
-            if (key.getModulus().bitLength() < 2048 || key.getModulus().bitLength() > 8192) {
-                throw new IllegalArgumentException("Invalid RSA size");
+        return logged("public-key", () -> {
+            log.debug("App Attest public-key stage=configuration");
+            if (aesKey.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "App Attest AES key is not configured");
             }
+            // The exact DER bytes hashed by Swift are also the key used for encryption.
+            log.debug("App Attest public-key stage=RSA-validation");
+            byte[] der = AppAttestService.decode(request.publicKey(), 16_384, "publicKey");
+            try {
+                RSAPublicKey key = (RSAPublicKey) KeyFactory.getInstance("RSA")
+                        .generatePublic(new X509EncodedKeySpec(der));
+                log.debug("App Attest RSA bytes={} bits={}", der.length, key.getModulus().bitLength());
+                if (key.getModulus().bitLength() < 2048 || key.getModulus().bitLength() > 8192) {
+                    throw new IllegalArgumentException("Invalid RSA size");
+                }
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "publicKey must be a Base64 DER X.509 RSA key (2048–8192 bits)");
+            }
+            appAttest.assertKey(request.keyId(), request.challengeId(), request.assertionObject(), der);
+            log.info("App Attest encryption start");
+            var response = new EncryptedKeyResponse(rsa.encrypt(aesKey, Base64.getEncoder().encodeToString(der)));
+            log.info("App Attest encryption success");
+            return response;
+        });
+    }
+
+    private static <T> T logged(String operation, Callable<T> action) throws Exception {
+        log.info("App Attest {} start", operation);
+        try {
+            T result = action.call();
+            log.info("App Attest {} success", operation);
+            return result;
+        } catch (ResponseStatusException e) {
+            // Reasons in this flow are fixed server-side strings, never exception messages or request data.
+            log.warn("App Attest {} rejected status={} reason={}", operation, e.getStatusCode().value(), e.getReason());
+            throw e;
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "publicKey must be a Base64 DER X.509 RSA key (2048–8192 bits)");
+            log.error("App Attest {} failed exceptionClass={}", operation, e.getClass().getName());
+            throw e;
         }
-        appAttest.assertKey(request.keyId(), request.challengeId(), request.assertionObject(), der);
-        return new EncryptedKeyResponse(rsa.encrypt(aesKey, Base64.getEncoder().encodeToString(der)));
     }
 }

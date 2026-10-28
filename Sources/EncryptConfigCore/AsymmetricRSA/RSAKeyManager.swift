@@ -8,6 +8,8 @@
 import Foundation
 import Security
 
+/// RSA private keys are persisted in Keychain. Secure Enclave only supports EC P-256;
+/// use `ECKeyManager` when the private key must remain in Secure Enclave.
 public final class RSAKeyManager: AsymmetricKeyManaging {
 
     private let tag: Data
@@ -54,7 +56,7 @@ public final class RSAKeyManager: AsymmetricKeyManaging {
     }
 
     public func generateKeyPairIfNeeded() throws {
-        guard !hasPrivateKey() else {
+        guard try store.load(tag: tag) == nil else {
             return
         }
 
