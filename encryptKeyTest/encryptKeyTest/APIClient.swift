@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import OSLog
 
 @MainActor
 final class APIClient {
@@ -21,7 +22,12 @@ final class APIClient {
         body: Body
     ) async throws -> Response {
         let data = try await send(endpoint: endpoint, body: body)
-        return try JSONDecoder().decode(Response.self, from: data)
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            AppAttestLog.failure(error, stage: "http.decodeResponse")
+            throw error
+        }
     }
 
     // Registration returns HTTP 204, with no JSON body to decode.
@@ -35,6 +41,7 @@ final class APIClient {
               let host = baseURL.host, !host.isEmpty,
               baseURL.user == nil, baseURL.password == nil,
               baseURL.query == nil, baseURL.fragment == nil else {
+            AppAttestLog.network.error("Invalid backend base URL configuration")
             throw APIError.invalidBaseURL
         }
         let url = baseURL.appendingPathComponent(endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
@@ -45,14 +52,31 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
+        let operation: String
+        switch endpoint {
+        case "/api/crypto/app-attest/challenge": operation = "challenge"
+        case "/api/crypto/app-attest/attest": operation = "attest"
+        case "/api/crypto/app-attest/public-key": operation = "public-key"
+        default: operation = "other"
         }
-        guard 200...299 ~= httpResponse.statusCode else {
-            throw APIError.httpError(statusCode: httpResponse.statusCode)
+        let requestTrace = String(UUID().uuidString.prefix(8))
+        AppAttestLog.network.info("request=\(requestTrace, privacy: .public) POST operation=\(operation, privacy: .public) started")
+        let started = Date()
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+            AppAttestLog.network.info("request=\(requestTrace, privacy: .public) operation=\(operation, privacy: .public) status=\(httpResponse.statusCode) duration_ms=\(elapsed)")
+            guard 200...299 ~= httpResponse.statusCode else {
+                throw APIError.httpError(statusCode: httpResponse.statusCode)
+            }
+            return data
+        } catch {
+            AppAttestLog.failure(error, stage: "http.\(operation)")
+            throw error
         }
-        return data
     }
 }
 

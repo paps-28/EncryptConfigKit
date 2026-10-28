@@ -18,6 +18,18 @@ La raíz pública de confianza se incluye en `src/main/resources/apple-app-attes
 
 No se aceptan raíces proporcionadas por el cliente. Si falta el App ID o la clave AES requerida, la operación correspondiente devuelve `503`.
 
+## Ejecución y logs
+
+Con las variables anteriores configuradas en el entorno, ejecuta desde `crypto-api-demo`:
+
+```sh
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8080 --server.address=0.0.0.0 --logging.level.com.crypt.crypto_api_demo=DEBUG"
+```
+
+`0.0.0.0` expone el puerto en todas las interfaces: úsalo solo en una red de pruebas controlada; en producción aplica HTTPS y controles de acceso.
+
+Los logs `INFO` indican inicio/éxito de challenge, registro, assertion y cifrado. `DEBUG` muestra etapas de validación (certificados, identidad, nonce y firma), propósitos, tamaños y contadores, sin sus valores criptográficos. Los rechazos HTTP se registran en `WARN` con operación, estado y razón estática; los errores inesperados en `ERROR` solo incluyen la operación y la clase de excepción, sin mensaje ni stack trace. No se registran IDs de entrada, challenges, claves RSA/AES, attestation/assertion, payloads ni cuerpos de petición. No habilites trazas de cuerpos HTTP en otros componentes.
+
 ## 1. Obtener challenge de atestación
 
 Obtén primero `keyId` con `try await manager.getOrCreateKeyId()`.
@@ -80,6 +92,7 @@ let assertion = try await manager.generateAssertion(
     rsaPublicKey: rsaDER
 )
 // Envía rsaBase64 como publicKey y assertion.base64EncodedString().
+// Debe codificar los mismos bytes rsaDER usados para generar la assertion.
 ```
 
 `POST /api/crypto/app-attest/public-key`
@@ -89,7 +102,7 @@ let assertion = try await manager.generateAssertion(
   "keyId": "<keyId registrado>",
   "challengeId": "<challengeId de ASSERTION>",
   "assertionObject": "<assertion en Base64>",
-  "publicKey": "<RSA DER X.509 SubjectPublicKeyInfo en Base64, sin cabeceras PEM>"
+  "publicKey": "<RSA DER X.509 SubjectPublicKeyInfo en Base64 estándar, sin saltos ni espacios>"
 }
 ```
 
@@ -101,13 +114,17 @@ Respuesta `200`:
 }
 ```
 
-La firma vincula **los mismos bytes DER** utilizados para cifrar la respuesta. El backend replica exactamente el payload de Swift:
+El endpoint protegido acepta `publicKey` **solo como Base64 estándar de DER X.509 SubjectPublicKeyInfo**, con RSA de 2048–8192 bits y un máximo de 16 384 bytes DER. No acepta PEM, espacios, saltos de línea ni PKCS#1. El endpoint original `/api/crypto/public-key` conserva su soporte PEM/Base64. Ambos usan RSA-OAEP SHA-512 con MGF1 SHA-512 para el cifrado.
+
+El endpoint protegido primero verifica el challenge, la assertion y su contador; solo después cifra la contraseña AES configurada en `APP_ATTEST_AES_KEY`. No usa la clave hardcodeada del endpoint de demostración. La firma vincula **los mismos bytes DER originales** decodificados del Base64 y utilizados para cifrar la respuesta, no su representación textual. El backend replica exactamente el payload de Swift:
 
 ```text
 clientDataHash = SHA256(UTF8("EncryptConfigKit.AppAttest.AESKey.v1") || 0x00 || challenge || rsaDER)
 ```
 
-Se comprueba la firma ECDSA de `authenticatorData || clientDataHash`, el App ID y un contador uint32 estrictamente creciente. Cada entrega requiere un challenge y una assertion nuevos.
+Se calcula `nonce = SHA256(authenticatorData || clientDataHash)` usando los bytes originales, incluidos los flags. Ese nonce de 32 bytes se verifica como **mensaje** con `SHA256withECDSA`, que aplica su propia capa SHA-256. No es equivalente a entregar directamente la concatenación al verificador ni a verificar el nonce como un digest sin hashear. No se utiliza fallback al cálculo anterior. También se comprueban el App ID y un contador uint32 estrictamente creciente. Cada entrega requiere un challenge y una assertion nuevos.
+
+Este cálculo sigue los pasos de [Apple para verificar assertions](https://developer.apple.com/documentation/devicecheck/validating-apps-that-connect-to-your-server#Verify-the-assertion) y se contrasta con un vector público de [node-app-attest, revisión fijada](https://github.com/uebelack/node-app-attest/blob/f16c4bb71b737466872bc8b8a7dfd215364eaa83/test/verifyAssertion.test.js).
 
 ## Errores y límites
 
@@ -134,4 +151,4 @@ Añade HTTPS, límites de cuerpo HTTP y rate limiting por cliente en el proxy, a
 ./mvnw test
 ```
 
-Los tests criptográficos usan certificados sintéticos, no dispositivos ni servicios de Apple. Para comprobar el flujo completo hace falta una app firmada en un dispositivo físico compatible y una atestación real del entorno configurado.
+Los tests criptográficos usan certificados sintéticos y un vector público de firma/assertion fijado en el repositorio; no llaman a dispositivos ni servicios de Apple. El vector externo permite detectar diferencias de hash que un generador y un verificador sintéticos podrían compartir por error. Para comprobar el flujo completo hace falta una app firmada en un dispositivo físico compatible y una atestación real del entorno configurado.

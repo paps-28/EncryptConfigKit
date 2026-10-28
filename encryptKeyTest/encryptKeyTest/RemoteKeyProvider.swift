@@ -6,6 +6,7 @@
 import EncryptConfigCore
 import EncryptConfigRuntime
 import Foundation
+import OSLog
 
 @MainActor
 final class RemoteKeyProvider: ConfigurationKeyProvider {
@@ -26,28 +27,48 @@ final class RemoteKeyProvider: ConfigurationKeyProvider {
     func configurationPassword() async throws -> String {
         // Coalesce concurrent loads so assertions for the same key cannot arrive out of order.
         if let pendingTask {
+            AppAttestLog.flow.debug("stage=aes.load joining in-flight request")
             return try await pendingTask.value
         }
-        let task = Task { try await fetchPassword() }
+        let task = Task {
+            do {
+                return try await fetchPassword()
+            } catch {
+                AppAttestLog.failure(error, stage: "aes.load")
+                throw error
+            }
+        }
         pendingTask = task
         defer { pendingTask = nil }
         return try await task.value
     }
 
     private func fetchPassword() async throws -> String {
+        AppAttestLog.flow.info("stage=rsa.prepare started")
         try rsaProvider.generateKeyPairIfNeeded()
         let publicKeyBase64 = try rsaProvider.publicKeyBase64()
         guard let publicKeyDER = Data(base64Encoded: publicKeyBase64), !publicKeyDER.isEmpty else {
             throw RemoteKeyProviderError.invalidPublicKey
         }
+        AppAttestLog.flow.info("stage=rsa.prepare ready")
+        AppAttestLog.flow.debug("stage=rsa.prepare public_key_der_bytes=\(publicKeyDER.count)")
         let response = try await api.encryptedKey(rsaPublicKey: publicKeyDER)
+        AppAttestLog.flow.info("stage=aes.decodeResponse started")
         guard let encryptedData = Data(base64Encoded: response.encryptedKey), !encryptedData.isEmpty else {
             throw RemoteKeyProviderError.noEncryptedKey
         }
-        let decrypted = try rsaProvider.decrypt(encryptedData)
+        AppAttestLog.flow.info("stage=aes.decrypt started")
+        let decrypted: Data
+        do {
+            decrypted = try rsaProvider.decrypt(encryptedData)
+        } catch {
+            AppAttestLog.failure(error, stage: "aes.decrypt")
+            throw error
+        }
         guard let password = String(data: decrypted, encoding: .utf8), !password.isEmpty else {
             throw RemoteKeyProviderError.invalidDecryption
         }
+        AppAttestLog.flow.info("stage=aes.decrypt succeeded; configuration password is ready")
         return password
     }
 }

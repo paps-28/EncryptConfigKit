@@ -127,6 +127,7 @@ final class AppAttestAPITests: XCTestCase {
         do {
             _ = try await fixture.api.encryptedKey(rsaPublicKey: rsaPublicKey)
             XCTFail("Expected invalid challenge")
+        } catch RemoteKeyProviderError.invalidChallenge {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -144,6 +145,7 @@ final class AppAttestAPITests: XCTestCase {
         do {
             _ = try await fixture.api.encryptedKey(rsaPublicKey: rsaPublicKey)
             XCTFail("Expected invalid challenge")
+        } catch RemoteKeyProviderError.invalidChallenge {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -156,6 +158,25 @@ final class AppAttestAPITests: XCTestCase {
         try assertChallengeRequest(requests[1], purpose: "ATTESTATION")
     }
 
+    func testAppleAttestationErrorIsPreservedAndNeverSubmittedToBackend() async throws {
+        let fixture = makeFixture(replies: [
+            .init(status: 404),
+            challengeReply(id: "attestation-id", bytes: attestationChallenge)
+        ])
+        defer { fixture.close() }
+        fixture.provider.attestationError = NSError(domain: "com.apple.devicecheck.error", code: 2)
+        do {
+            _ = try await fixture.api.encryptedKey(rsaPublicKey: rsaPublicKey)
+            XCTFail("Expected Apple attestation error")
+        } catch {
+            XCTAssertEqual((error as NSError).domain, "com.apple.devicecheck.error")
+            XCTAssertEqual((error as NSError).code, 2)
+        }
+        assertRequests(fixture.script.requests, paths: ["challenge", "challenge"])
+        XCTAssertEqual(fixture.provider.attestationChallenges, [attestationChallenge])
+        XCTAssertTrue(fixture.provider.assertions.isEmpty)
+    }
+
     private func makeFixture(replies: [AppAttestHTTPReply]) -> AppAttestFixture {
         let host = "\(UUID().uuidString.lowercased()).invalid"
         let script = AppAttestHTTPScript(replies: replies)
@@ -164,7 +185,7 @@ final class AppAttestAPITests: XCTestCase {
         configuration.protocolClasses = [AppAttestTestURLProtocol.self]
         let session = URLSession(configuration: configuration)
         let provider = AppAttestProviderStub()
-        let client = APIClient()
+        let client = APIClient(baseURL: URL(string: "https://\(host)")!, session: session)
         return AppAttestFixture(
             api: AppAttestAPI(client: client, provider: provider),
             provider: provider, session: session, script: script, host: host
@@ -224,6 +245,7 @@ final class AppAttestAPITests: XCTestCase {
 @MainActor
 private final class AppAttestProviderStub: AppAttestProviding {
     let attestation = Data([0x00, 0xff, 0x80, 0x22])
+    var attestationError: Error?
     private(set) var keyIdCalls = 0
     private(set) var attestationChallenges: [Data] = []
     private(set) var assertions: [(challenge: Data, rsaPublicKey: Data)] = []
@@ -235,6 +257,7 @@ private final class AppAttestProviderStub: AppAttestProviding {
 
     func attest(challenge: Data) async throws -> Data {
         attestationChallenges.append(challenge)
+        if let attestationError { throw attestationError }
         return attestation
     }
 
