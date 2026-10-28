@@ -30,6 +30,11 @@
 		<java.version>25</java.version>
 	</properties>
 	<dependencies>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.54.0</version>
+        </dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
@@ -62,4 +67,33 @@
 		</plugins>
 	</build>
 
+    <profiles>
+        <profile>
+            <id>local-simulation</id>
+            <build>
+                <directory>${project.basedir}/target-simulation</directory>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.2</version>
+                        <executions>
+                            <execution>
+                                <id>simulation-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals><goal>add-source</goal></goals>
+                                <configuration><sources><source>src/simulation/java</source></sources></configuration>
+                            </execution>
+                            <execution>
+                                <id>simulation-resources</id>
+                                <phase>generate-resources</phase>
+                                <goals><goal>add-resource</goal></goals>
+                                <configuration><resources><resource><directory>src/simulation/resources</directory></resource></resources></configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
