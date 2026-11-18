@@ -128,16 +128,15 @@ class AppAttestControllerTests {
                 new ObjectMapper().readTree(response).get("encryptedKey").asText(), key.getPrivate()));
     }
 
-    @ParameterizedTest(name = "original HTTP {0}")
-    @MethodSource("com.crypt.crypto_api_demo.RsaEncryptionServiceTests#publicKeyFormats")
-    void originalEndpointStillEncryptsPemAndBase64(String format, String publicKey, KeyPair key) throws Exception {
-        var mvc = MockMvcBuilders.standaloneSetup(new CryptoController(new RsaEncryptionService())).build();
-        var json = new ObjectMapper();
-        String response = mvc.perform(post("/api/crypto/public-key").contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("publicKey", publicKey))))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertEquals("eosqFMaSmizdHNGVuYsaGDFpJ2uCB2EGc7RGBm7IKfE", RsaEncryptionServiceTests.decrypt(
-                json.readTree(response).get("encryptedKey").asText(), key.getPrivate()));
+    @Test
+    void legacyEndpointsRejectRequestsWithoutReturningKeyMaterial() throws Exception {
+        var mvc = MockMvcBuilders.standaloneSetup(new CryptoController()).build();
+        for (String endpoint : new String[]{"/api/crypto/public-key", "/api/crypto/public-key-with-file"}) {
+            String response = mvc.perform(post(endpoint).contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isGone()).andReturn().getResponse().getContentAsString();
+            assertFalse(response.contains("encryptedKey"));
+        }
     }
 
     @ParameterizedTest(name = "failed assertion {0}")
@@ -287,7 +286,7 @@ class AppAttestControllerTests {
                 assertTrue(logs.contains(operation + " success"));
             }
             assertTrue(appender.list.stream().anyMatch(event -> event.getLevel() == Level.WARN
-                    && event.getFormattedMessage().contains("reason=Challenge is expired, consumed or does not match this operation")));
+                    && event.getFormattedMessage().contains("reason=Invalid or consumed challenge")));
             assertTrue(appender.list.stream().anyMatch(event -> event.getLevel() == Level.ERROR
                     && event.getFormattedMessage().contains("exceptionClass=java.lang.IllegalStateException")));
             for (String sensitive : new String[]{KEY_ID, registration.challengeId(), registration.challenge(),

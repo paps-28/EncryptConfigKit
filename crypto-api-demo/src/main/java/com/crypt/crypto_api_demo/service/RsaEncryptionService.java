@@ -27,11 +27,10 @@ public class RsaEncryptionService {
 
         cipher.init(Cipher.ENCRYPT_MODE, publicKey, oaepParams);
 
-        byte[] encrypted = cipher.doFinal(
-            plaintext.getBytes(StandardCharsets.UTF_8)
-        );
-
-        return Base64.getEncoder().encodeToString(encrypted);
+        byte[] clear = plaintext.getBytes(StandardCharsets.UTF_8);
+        try {
+            return Base64.getEncoder().encodeToString(cipher.doFinal(clear));
+        } finally { java.util.Arrays.fill(clear, (byte) 0); }
     }
 
     private PublicKey loadPublicKey(String publicKeyPem) throws Exception {
